@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 FPS = 30
 TURN_SECONDS = 20
-START_TIME = 13.4
+START_TIME = 0
 RESET = "\x1b[0m"
 TILT = math.radians(18)
 SIN_TILT, COS_TILT = math.sin(TILT), math.cos(TILT)
@@ -68,12 +68,13 @@ def make_model(detail=1):
                     char, kind = rng.choice(".:+*"), 1
                 add(x, yy, z, char, color, 1.2 + 5.1 * fraction + 0.32 * s, kind)
 
-    for row in range(30):
-        y = 0.04 + row * 0.014
+    for row in range(150):
+        y = 0.04 + row / 149 * (TREE_TOP - 0.04)
+        radius = 0.018 + 0.062 * (1 - y / TREE_TOP)
         for col in range(25):
             angle = math.tau * col / 25
-            add(0.065 * math.cos(angle), y, 0.065 * math.sin(angle), "|",
-                (88, 64, 40), 0.8, 8)
+            add(radius * math.cos(angle), y, radius * math.sin(angle), "|",
+                (111, 79, 48), 0, 8)
 
     # A gold garland with sagging loops and 170 separate bulbs.
     for index in range(round(2600 * detail)):
@@ -162,7 +163,7 @@ def make_model(detail=1):
                     cz + 0.025 * math.sin(angle), "*" if j % 3 == 0 else "+",
                     ribbon, 8.3 + index * 0.12, 5)
 
-    # A small five-point star and fine ASCII diffraction rays.
+    # A filled five-point star. Its light comes from the glyphs themselves.
     vertices = []
     for i in range(10):
         a = i * math.tau / 10
@@ -175,15 +176,55 @@ def make_model(detail=1):
             for ring in range(1, 9):
                 r = ring / 8
                 add((ax + (bx - ax) * u) * r, 3.13 + (ay + (by - ay) * u) * r,
-                    0, "*", (247, 217, 104), 9.0, 6)
-    for dx, dy, char, length in ((0, 1, "|", .36), (0, -1, "|", .24),
-                                (-.55, .84, "\\", .33), (.55, .84, "/", .33),
-                                (-1, 0, "-", .22), (1, 0, "-", .22)):
-        for step in range(5, 24):
-            r = length * step / 24
-            add(dx * r, 3.13 + dy * r, 0, char,
-                (150, 135, 77), 9.0, 6)
+                    0, "*", (247, 217, 104), 10.5, 6)
     return points
+
+
+def smoothstep(value):
+    value = max(0, min(1, value))
+    return value * value * (3 - 2 * value)
+
+
+def animate_point(point, index, elapsed):
+    """Return the current point position, glyph and opacity, or None before birth."""
+    x, y, z, char = point.x, point.y, point.z, point.char
+    if point.kind >= 7:
+        return x, y, z, char, 1.0
+    age = elapsed - point.reveal
+    if age >= 3.6:
+        return x, y, z, char, 1.0
+    if point.kind == 6:
+        if age <= 0:
+            return None
+        progress = smoothstep(age / 3.2)
+        x += 0.16 * math.sin(math.pi * progress) * (1 - progress)
+        y += 1.35 * (1 - progress)
+        return x, y, z, char, smoothstep(age / 0.45)
+
+    seed = (index * 0.61803398875) % 1
+    spread = (index * 0.7548776662) % 1
+    foliage = point.kind <= 1
+    age -= seed * (0.4 if foliage else 1.5)
+    if age <= 0:
+        return None
+    progress = min(1, age / (1.0 if foliage else 2.1))
+    ease = smoothstep(progress)
+    remaining = 1 - ease
+    if foliage:
+        x *= ease
+        z *= ease
+        y += 0.10 * math.sin(seed * math.tau + progress * 8) * remaining
+    else:
+        orbit = seed * math.tau + ease * 3
+        radius = (0.38 + spread * 0.6) * remaining
+        x += radius * math.sin(orbit)
+        z += radius * math.cos(orbit)
+        y += (0.15 + spread * 0.55) * remaining
+    if progress < 0.55:
+        char = "."
+    elif progress < 0.85:
+        char = ":"
+    return x, y, z, char, ease
 
 
 class Scene:
@@ -199,8 +240,8 @@ class Scene:
         width, height = self.width, self.height
         cells = [(" ", (0, 0, 0))] * (width * height)
         depth = [-math.inf] * len(cells)
-        phase = elapsed % TURN_SECONDS
-        angle = phase * math.tau / TURN_SECONDS
+        phase = max(0, elapsed)
+        angle = (elapsed % TURN_SECONDS) * math.tau / TURN_SECONDS
         cosine, sine = math.cos(angle), math.sin(angle)
         scale = min(width / 8.2, (height - 3) / 4.1)
         center_x, floor_y = (width - 1) / 2, (height - 1) * 0.79
@@ -214,26 +255,30 @@ class Scene:
             depth[index] = 6 if seed > .95 else -math.inf
 
         for index, p in enumerate(self.points):
-            if phase < p.reveal:
+            state = animate_point(p, index, phase)
+            if state is None:
                 continue
-            x, z = (p.x, p.z) if p.kind == 6 else (p.x * cosine - p.z * sine, p.x * sine + p.z * cosine)
+            x, y, z, char, opacity = state
+            if p.kind != 6:
+                x, z = x * cosine - z * sine, x * sine + z * cosine
             col = round(center_x + x * 2 * scale)
-            row = round(floor_y + (-p.y * COS_TILT + z * SIN_TILT) * scale)
+            row = round(floor_y + (-y * COS_TILT + z * SIN_TILT) * scale)
             if not (0 <= col < width and 0 <= row < height):
                 continue
             cell = row * width + col
-            distance = z * COS_TILT + p.y * SIN_TILT
+            distance = z * COS_TILT + y * SIN_TILT
             if distance < depth[cell]:
                 continue
             shade = 1.0
             if p.kind in (0, 1, 2, 3):
                 shade = max(.38, .80 + .40 * (z + .35 * x) / (math.hypot(x, z) or 1))
-            if p.kind in (4, 6):
+            if p.kind == 4:
                 shade = .8 + .2 * math.sin(elapsed * 4 + index * .3)
-            rgb = tuple(min(255, int(c * shade)) for c in (p.red, p.green, p.blue))
-            if p.kind in (0, 1) and phase < 6.7 and phase - p.reveal < .16:
-                rgb = (210, 221, 218)
-            cells[cell] = p.char, rgb
+            if p.kind == 6:
+                shade = .95 + .35 * math.sin(elapsed * 3.3) ** 8 + .15 * math.sin(elapsed * 2)
+                shade += .12 * math.sin(elapsed * 8 + index * .731) ** 16
+            rgb = tuple(min(255, int(c * shade * opacity)) for c in (p.red, p.green, p.blue))
+            cells[cell] = char, rgb
             depth[cell] = distance
 
         lines = []
@@ -279,7 +324,7 @@ def main():
     parser.add_argument("--width", type=int, help="maximum width in columns (64-320)")
     parser.add_argument("--height", type=int, help="maximum height in rows (28-160)")
     parser.add_argument("--fps", type=int, default=FPS, help="animation target FPS (1-60)")
-    parser.add_argument("--time", type=float, default=START_TIME, help="starting point in the 20-second loop")
+    parser.add_argument("--time", type=float, default=START_TIME, help="seconds since the construction began")
     args = parser.parse_args()
     if args.width is not None and not 64 <= args.width <= 320:
         parser.error("--width must be between 64 and 320")

@@ -24,7 +24,7 @@ const snow = Array.from({length: 520}, () => ({
 }));
 
 let view;
-let elapsed = 13.4;
+let elapsed = motion.matches ? 15 : 0;
 let lastFrame = null;
 let frameBudget = 0;
 let scheduled = null;
@@ -49,7 +49,8 @@ function resize() {
   view = {width, height, columns, rows, cellWidth, cellHeight,
     scale: Math.min(width / 3.95, height / 4.15),
     glyphs: new Uint8Array(cells), ink: new Uint32Array(cells),
-    depth: new Float32Array(cells), bloom: new Uint8Array(cells)};
+    depth: new Float32Array(cells), bloom: new Uint8Array(cells),
+    opacity: new Float32Array(cells)};
   draw();
 }
 
@@ -68,14 +69,61 @@ function cssColor(color) {
   return value;
 }
 
+function smoothstep(value) {
+  value = Math.max(0, Math.min(1, value));
+  return value * value * (3 - 2 * value);
+}
+
+function animatePoint(offset, time) {
+  let x = model[offset] / 1000;
+  let y = model[offset + 1] / 1000;
+  let z = model[offset + 2] / 1000;
+  let char = model[offset + 3];
+  const kind = model[offset + 8];
+  let age = time - model[offset + 7] / 100;
+  if (kind >= 7 || age >= 3.6) return [x, y, z, char, 1];
+  if (kind === 6) {
+    if (age <= 0) return null;
+    const progress = smoothstep(age / 3.2);
+    x += 0.16 * Math.sin(Math.PI * progress) * (1 - progress);
+    y += 1.35 * (1 - progress);
+    return [x, y, z, char, smoothstep(age / 0.45)];
+  }
+  const index = offset / 9;
+  const seed = index * 0.61803398875 % 1;
+  const spread = index * 0.7548776662 % 1;
+  const foliage = kind <= 1;
+  age -= seed * (foliage ? 0.4 : 1.5);
+  if (age <= 0) return null;
+  const progress = Math.min(1, age / (foliage ? 1 : 2.1));
+  const ease = smoothstep(progress);
+  const remaining = 1 - ease;
+  if (foliage) {
+    x *= ease;
+    z *= ease;
+    y += 0.10 * Math.sin(seed * tau + progress * 8) * remaining;
+  } else {
+    const orbit = seed * tau + ease * 3;
+    const radius = (0.38 + spread * 0.6) * remaining;
+    x += radius * Math.sin(orbit);
+    z += radius * Math.cos(orbit);
+    y += (0.15 + spread * 0.55) * remaining;
+  }
+  if (progress < 0.55) char = 46;
+  else if (progress < 0.85) char = 58;
+  return [x, y, z, char, ease];
+}
+
 function draw() {
   if (!view) return;
-  const {width, height, columns, rows, cellWidth, cellHeight, scale, glyphs, ink, depth, bloom} = view;
+  const {width, height, columns, rows, cellWidth, cellHeight, scale, glyphs, ink, depth, bloom, opacity} = view;
   glyphs.fill(0);
   bloom.fill(0);
   depth.fill(-Infinity);
-  const phase = elapsed % 20;
-  const angle = phase * tau / 20;
+  opacity.fill(1);
+  const phase = Math.max(0, elapsed);
+  const rotation = elapsed % 20;
+  const angle = rotation * tau / 20;
   const cosine = Math.cos(angle);
   const sine = Math.sin(angle);
   const centerX = width / 2;
@@ -98,12 +146,11 @@ function draw() {
   }
 
   for (let i = 0; i < model.length; i += 9) {
-    const reveal = model[i + 7] / 100;
-    if (phase < reveal) continue;
+    const state = animatePoint(i, phase);
+    if (!state) continue;
     const kind = model[i + 8];
-    let x = model[i] / 1000;
-    const y = model[i + 1] / 1000;
-    let z = model[i + 2] / 1000;
+    let [x, y, z, char, alpha] = state;
+    if (kind === 4 && alpha > 0.95) lights++;
     if (kind !== 6) {
       const rotatedX = x * cosine - z * sine;
       z = x * sine + z * cosine;
@@ -120,17 +167,18 @@ function draw() {
     if (kind <= 3) {
       shade = Math.max(0.38, 0.8 + 0.4 * (z + 0.35 * x) / (Math.hypot(x, z) || 1));
     }
-    if (kind === 4 || kind === 6) {
+    if (kind === 4) {
       shade = 0.83 + 0.17 * Math.sin(elapsed * 4 + i * 0.033);
     }
-    let color = rgb(model[i + 4] * shade, model[i + 5] * shade, model[i + 6] * shade);
-    if (kind <= 1 && phase < 6.7 && phase - reveal < 0.16) {
-      color = rgb(210, 221, 218);
+    if (kind === 6) {
+      shade = 0.95 + 0.35 * Math.sin(elapsed * 3.3) ** 8 + 0.15 * Math.sin(elapsed * 2);
+      shade += 0.12 * Math.sin(elapsed * 8 + i / 9 * 0.731) ** 16;
     }
-    glyphs[index] = model[i + 3];
-    ink[index] = color;
+    glyphs[index] = char;
+    ink[index] = rgb(model[i + 4] * shade, model[i + 5] * shade, model[i + 6] * shade);
+    opacity[index] = alpha;
     depth[index] = distance;
-    bloom[index] = kind === 4 || kind === 6 ? 2 : 0;
+    bloom[index] = kind === 6 ? 3 : kind === 4 ? 2 : 0;
   }
 
   ctx.fillStyle = background;
@@ -143,16 +191,18 @@ function draw() {
       previous = ink[i];
       ctx.fillStyle = cssColor(previous);
     }
+    ctx.globalAlpha = opacity[i];
     ctx.fillText(String.fromCharCode(glyphs[i]),
       (i % columns) * cellWidth, Math.floor(i / columns) * cellHeight);
     count++;
   }
 
   // The glow is a second pass of the same ASCII glyphs.
-  ctx.globalAlpha = 0.45;
-  ctx.shadowBlur = height / 95;
   for (let i = 0; i < glyphs.length; i++) {
     if (!bloom[i] || !glyphs[i]) continue;
+    const star = bloom[i] === 3;
+    ctx.globalAlpha = opacity[i] * (star ? 0.45 + 0.18 * Math.sin(elapsed * 3.3) ** 8 : 0.45);
+    ctx.shadowBlur = height / (star ? 60 : 95);
     ctx.shadowColor = cssColor(ink[i]);
     ctx.fillStyle = cssColor(ink[i]);
     ctx.fillText(String.fromCharCode(glyphs[i]),
@@ -160,11 +210,8 @@ function draw() {
   }
   ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
-  for (let i = 7; i < model.length; i += 9) {
-    if (model[i + 1] === 4 && phase >= model[i] / 100) lights++;
-  }
   timeLabel.textContent = "t " + phase.toFixed(2).padStart(5, "0") + "s";
-  stats.textContent = "rotation " + (phase * 18).toFixed(2) + "\u00b0   lights " + lights +
+  stats.textContent = "rotation " + (rotation * 18).toFixed(2) + "\u00b0   lights " + lights +
     "\nletters " + count.toLocaleString("en-US");
 }
 

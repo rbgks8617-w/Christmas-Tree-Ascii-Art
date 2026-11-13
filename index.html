@@ -4,21 +4,29 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#181c24">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>ASCII Christmas Tree</title>
   <link rel="stylesheet" href="./styles.css">
   <script defer src="./geometry.js"></script>
   <script defer src="./scene.js"></script>
+  <script defer src="./music.js"></script>
 </head>
 <body>
   <main aria-label="ASCII 크리스마스 트리">
-    <canvas id="scene" role="img" aria-label="눈이 내리는 가운데 가지, 장식, 선물과 금빛 별이 차례로 나타나는 회전하는 ASCII 크리스마스 트리"></canvas>
+    <canvas id="scene" role="img" aria-label="기둥에 잎이 자라고 장식과 선물이 입자로 모이며, 하늘에서 별이 내려와 반짝이는 회전 ASCII 크리스마스 트리"></canvas>
     <span id="time" aria-hidden="true"></span>
     <pre id="stats" aria-hidden="true"></pre>
     <div class="controls">
+      <button id="music-toggle" type="button" aria-pressed="false" aria-controls="music-panel">음악 재생</button>
       <button id="replay" type="button">처음부터</button>
       <button id="toggle" type="button">일시정지</button>
     </div>
     <noscript>애니메이션을 보려면 JavaScript를 켜 주세요.</noscript>
   </main>
+  <aside id="music-panel" aria-label="음악 플레이어" hidden>
+    <div id="music-mount"><div id="music-player"></div></div>
+    <p id="music-status" role="status"></p>
+    <a href="https://music.youtube.com/watch?v=KRtvCCDbLgQ" target="_blank" rel="noopener noreferrer">YouTube Music에서 열기</a>
+  </aside>
 </body>
 </html>
