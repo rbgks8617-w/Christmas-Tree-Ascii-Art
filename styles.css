@@ -78,3 +78,6 @@ button:disabled { opacity: 0.6; cursor: wait; }
   }
 }
 noscript { position: absolute; inset: 40% 5%; text-align: center; }
+#stats {
+    display: none !important;
+}
