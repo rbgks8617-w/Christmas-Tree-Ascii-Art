@@ -76,3 +76,14 @@ when sending fails. The normal UI shows only anonymous chat and its input.
 The existing static hostname christmas-tree-ascii-art.onrender.com redirects
 visitors to https://christmas-tree-ascii-art-server.onrender.com, where the
 Python server serves both the scene and /api/chat on the same origin.
+
+## Chat moderation
+
+Visit /admin on the Python Web Service. Sign in with CHAT_ADMIN_PASSWORD from
+that service's Render Environment settings. The password is never embedded in
+client assets. Without this environment variable, admin login is disabled.
+The Blueprint generates it for new setups; existing services can set it directly
+in Render. Sessions expire after 8 hours and are revoked on logout or restart.
+The page supports per-message deletion and confirmed clearing of the current
+list. Messages arriving after the clear confirmation are preserved. All delete
+operations require a server-validated admin session. Login attempts are limited.

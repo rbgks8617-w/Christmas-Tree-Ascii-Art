@@ -9,3 +9,5 @@ services:
     envVars:
       - key: CHAT_SECRET
         generateValue: true
+      - key: CHAT_ADMIN_PASSWORD
+        generateValue: true

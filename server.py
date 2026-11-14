@@ -8,6 +8,7 @@ import secrets
 import sqlite3
 import threading
 import time
+import admin
 from collections import deque
 from contextlib import closing
 from http.cookies import SimpleCookie, CookieError
@@ -20,7 +21,7 @@ DB = Path(os.environ.get("CHAT_DB", str(ROOT / "data" / "chat.sqlite3")))
 SECRET = os.environ.get("CHAT_SECRET", secrets.token_hex(32)).encode()
 LOCK = threading.Lock()
 LIMITS = {}
-ASSETS = {"index.html", "styles.css", "geometry.js", "scene.js", "music.js", "chat.js"}
+ASSETS = {"index.html", "styles.css", "geometry.js", "scene.js", "music.js", "chat.js", "admin.html", "admin.js", "admin.css"}
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
          ".js": "text/javascript; charset=utf-8"}
 
@@ -57,13 +58,15 @@ class Handler(BaseHTTPRequestHandler):
             token = secrets.token_hex(16)
         return token, valid
 
-    def reply(self, status, payload, cookie=None):
+    def reply(self, status, payload, cookie=None, response_cookie=None):
         body = json.dumps(payload, ensure_ascii=False).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Length", str(len(body)))
+        if response_cookie:
+            self.send_header("Set-Cookie", response_cookie)
         if cookie:
             secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" else ""
             self.send_header("Set-Cookie", f"visitor={cookie}.{signature(cookie)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400{secure}")
@@ -71,6 +74,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        if admin.handle(self, DB):
+            return
         path = urlsplit(self.path).path
         if path == "/assets/christmas.mp3":
             return self.serve_music()
@@ -82,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
                 rows = db.execute("SELECT id, sender, name, text, created FROM messages WHERE created > ? ORDER BY id DESC LIMIT 100", (time.time() - 86400,)).fetchall()
             messages = [{"id": r[0], "mine": r[1] == token, "name": r[2], "text": r[3], "created": r[4]} for r in reversed(rows)]
             return self.reply(200, {"name": "익명 " + token[:6].upper(), "messages": messages}, None if valid else token)
-        name = "index.html" if path == "/" else path.removeprefix("/")
+        name = "admin.html" if path in ("/admin", "/admin/") else "index.html" if path == "/" else path.removeprefix("/")
         if name not in ASSETS:
             return self.reply(404, {"error": "찾을 수 없는 주소예요."})
         body = (ROOT / name).read_bytes()
@@ -92,6 +97,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Frame-Options", "DENY")
         self.end_headers()
         self.wfile.write(body)
 
@@ -153,6 +159,8 @@ class Handler(BaseHTTPRequestHandler):
             pass  # Seeking/pausing can close a browser's media request.
 
     def do_POST(self):
+        if admin.handle(self, DB):
+            return
         if urlsplit(self.path).path != "/api/chat":
             return self.reply(404, {"error": "찾을 수 없는 주소예요."})
         origin = self.headers.get("Origin")

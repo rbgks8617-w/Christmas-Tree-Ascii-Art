@@ -79,6 +79,52 @@ class ChatTests(unittest.TestCase):
         with server.closing(sqlite3.connect(server.DB)) as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM messages WHERE request_id=?", ("message-test-001",)).fetchone()[0], 1)
 
+    def test_admin_authentication_and_deletion(self):
+        import secrets
+        import time
+        import admin
+        previous = admin.PASSWORD
+        admin.PASSWORD = secrets.token_urlsafe(32)
+        admin.SESSIONS.clear()
+        admin.ATTEMPTS.clear()
+        manager = self.client()
+        anonymous = self.client()
+        try:
+            self.assertEqual(self.request(anonymous, "/api/admin/messages")[0], 401)
+            self.assertEqual(self.request(anonymous, "/api/admin/delete", {"id": 1})[0], 401)
+            self.assertEqual(self.request(manager, "/api/admin/login", {"password": "wrong"})[0], 401)
+            self.assertEqual(self.request(manager, "/api/admin/login", {"password": admin.PASSWORD}, origin="https://other.example")[0], 403)
+            self.assertEqual(self.request(manager, "/api/admin/login", {"password": admin.PASSWORD})[0], 200)
+            old_cookie = manager["cookie"]
+            self.assertEqual(self.request({"cookie": old_cookie + "tamper"}, "/api/admin/messages")[0], 401)
+            with server.closing(sqlite3.connect(server.DB)) as db, db:
+                first = db.execute("INSERT INTO messages(sender,request_id,name,text,created) VALUES(?,?,?,?,?)", ("test", "admin-1", "anonymous", "first", time.time())).lastrowid
+                second = db.execute("INSERT INTO messages(sender,request_id,name,text,created) VALUES(?,?,?,?,?)", ("test", "admin-2", "anonymous", "second", time.time())).lastrowid
+            status, data = self.request(manager, "/api/admin/messages")
+            self.assertEqual(status, 200)
+            self.assertTrue(any(m["id"] == first for m in data["messages"]))
+            self.assertEqual(self.request(manager, "/api/admin/delete", {"id": first}, origin="https://other.example")[0], 403)
+            self.assertEqual(self.request(manager, "/api/admin/delete", {"id": first})[1]["deleted"], 1)
+            self.assertEqual(self.request(manager, "/api/admin/clear", {"throughId": second})[0], 400)
+            with server.closing(sqlite3.connect(server.DB)) as db, db:
+                newest = db.execute("INSERT INTO messages(sender,request_id,name,text,created) VALUES(?,?,?,?,?)", ("test", "admin-3", "anonymous", "newer", time.time())).lastrowid
+            self.assertEqual(self.request(manager, "/api/admin/clear", {"confirm": "DELETE", "throughId": second})[0], 200)
+            _, data = self.request(manager, "/api/admin/messages")
+            self.assertTrue(any(m["id"] == newest for m in data["messages"]))
+            self.assertFalse(any(m["id"] <= second for m in data["messages"]))
+            self.assertEqual(self.request(manager, "/api/admin/logout", {})[0], 200)
+            self.assertEqual(self.request({"cookie": old_cookie}, "/api/admin/messages")[0], 401)
+            for _ in range(5):
+                self.assertEqual(self.request(manager, "/api/admin/login", {"password": "wrong"})[0], 401)
+            self.assertEqual(self.request(manager, "/api/admin/login", {"password": admin.PASSWORD})[0], 429)
+            admin.ATTEMPTS.clear()
+            admin.PASSWORD = ""
+            self.assertEqual(self.request(manager, "/api/admin/login", {"password": "anything"})[0], 503)
+        finally:
+            admin.PASSWORD = previous
+            admin.SESSIONS.clear()
+            admin.ATTEMPTS.clear()
+
     def test_music_streaming(self):
         client = self.client()
         path = server.ROOT / "assets" / "christmas.mp3"
@@ -99,7 +145,7 @@ class ChatTests(unittest.TestCase):
     def test_assets_and_health(self):
         client = self.client()
         self.assertEqual(self.request(client, "/healthz")[0], 200)
-        for path in ["/", "/styles.css", "/scene.js", "/chat.js", "/music.js", "/geometry.js"]:
+        for path in ["/", "/admin", "/admin.js", "/admin.css", "/styles.css", "/scene.js", "/chat.js", "/music.js", "/geometry.js"]:
             status, content = self.raw_request(client, path)
             self.assertEqual(status, 200)
             self.assertGreater(len(content), 100)
