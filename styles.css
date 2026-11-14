@@ -26,3 +26,27 @@ main{flex:none;width:min(100%,49.56svh);margin:0 auto}
 #chat-form{padding:12px 16px 8px}#chat-input{font-size:16px}.controls{gap:6px;bottom:5%}button{min-height:32px;padding:5px 8px}
 }
 #stats { display: none !important; }
+
+/* Minimal chat and compact music controls. */
+#chat-panel { border-radius: 8px; }
+#messages { padding: 16px; }
+#chat-form { padding: 12px; }
+.message { margin: 0 0 10px; color: #ced1d6; font: 13px/1.65 system-ui,sans-serif; overflow-wrap: anywhere; white-space: pre-wrap; }
+.message-name { color: #c8b891; }
+.message.mine { color: #e8dec8; }
+.chat-compose { align-items: center; }
+.chat-compose label { flex: none; font: 13px system-ui,sans-serif; color: #c8b891; }
+#chat-input { padding: 10px; }
+#chat-status { min-height: 0; margin-top: 8px; }
+.controls { left: 2%; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: wrap; }
+.volume-control { display: flex; align-items: center; gap: 5px; font-size: 10px; }
+#music-volume { width: 65px; min-height: 28px; accent-color: #d3bc83; margin: 0; }
+#volume-value { width: 27px; font-size: 9px; }
+@media(max-width:760px) {
+  .controls { gap: 4px; }
+  .controls button { padding: 4px 6px; font-size: 10px; }
+  .volume-control { gap: 3px; }
+  .volume-control > span { display: none; }
+  #music-volume { width: 50px; }
+  #volume-value { width: 24px; }
+}

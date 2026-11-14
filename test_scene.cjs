@@ -42,31 +42,3 @@ for(const [width,height,reduced] of [[444,530,false],[360,429,false],[756,900,tr
  events["#replayclick"]();assert.equal(vm.runInContext("elapsed",env),0);
  console.log(width+"x"+height+" trunk, particles, star, persistent tree passed");
 }
-function musicEnvironment(protocol="https:"){
- let options,state=-1,script,timer;
- const calls={play:0,pause:0,seek:0},events={},elements={};
- for(const id of ["#music-toggle","#music-panel","#music-status","#music-mount"])elements[id]={textContent:"",setAttribute(){},replaceChildren(){},addEventListener(e,fn){events[id+e]=fn}};
- const player={getIframe:()=>({setAttribute(){}}),setVolume(){},getPlayerState:()=>state,
- playVideo(){calls.play++},pauseVideo(){calls.pause++},seekTo(){calls.seek++},destroy(){}};
- const YT={PlayerState:{PLAYING:1,PAUSED:2,BUFFERING:3,ENDED:0},Player:function(id,opts){options=opts;return player}};
- const window={location:{protocol,origin:"https://rbgks8617-w.github.io"}};
- const document={querySelector:id=>elements[id],body:{classList:{add(){}}},createElement:()=>({remove(){}}),head:{append(s){script=s}}};
- const env=vm.createContext({window,document,setTimeout(fn){timer=fn;return 1},clearTimeout(){}});
- vm.runInContext(fs.readFileSync("music.js","utf8"),env);
- return {elements,calls,click:()=>events["#music-toggleclick"](),
- load(){env.YT=YT;window.YT=YT;window.onYouTubeIframeAPIReady();options.events.onReady({target:player})},
- event(name,data){state=data;options.events[name]({target:player,data})},
- options:()=>options,failNetwork:()=>script.onerror(),timeout:()=>timer()};
-}
-const music=musicEnvironment();music.click();assert.equal(music.elements["#music-toggle"].disabled,true);
-music.load();assert.equal(music.options().videoId,"KRtvCCDbLgQ");assert.equal(music.options().playerVars.playlist,"KRtvCCDbLgQ");
-assert.equal(music.options().playerVars.loop,1);assert.equal(music.calls.play,1);
-music.event("onStateChange",1);music.event("onStateChange",0);assert.equal(music.calls.seek,1);assert.equal(music.calls.play,2);
-music.event("onStateChange",1);music.click();assert.equal(music.calls.pause,1);
-music.event("onStateChange",2);music.event("onStateChange",0);assert.equal(music.calls.seek,1);
-music.event("onAutoplayBlocked");assert(music.elements["#music-status"].textContent.includes("버튼"));
-music.event("onError",101);assert(music.elements["#music-status"].textContent.includes("제한"));
-const local=musicEnvironment("file:");local.click();assert(local.elements["#music-status"].textContent.includes("localhost"));
-const offline=musicEnvironment();offline.click();offline.failNetwork();assert.equal(offline.elements["#music-toggle"].disabled,false);
-const slow=musicEnvironment();slow.click();slow.timeout();assert.equal(slow.elements["#music-toggle"].disabled,false);
-console.log("Music loop, pause, autoplay denial, embed error, file URL and network recovery passed");

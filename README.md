@@ -17,7 +17,8 @@ Opening index.html or using a static file server runs the animation only.
 - Desktop: tree on the left, chat on the right. Mobile: tree at the top, chat below.
 - The music button controls the looping YouTube track KRtvCCDbLgQ. The video frame
   is outside the visible layout, so its thumbnail does not take up screen space.
-  Sound requires a click and internet access. YouTube/browser restrictions can
+  Music attempts autoplay on entry and falls back to a user gesture when blocked.
+  The volume slider is saved per browser. Internet access is required. YouTube/browser restrictions can
   prevent playback, particularly for offscreen players; live playback needs to
   be checked on the target desktop/mobile browsers. There is no downloaded audio.
 
@@ -56,8 +57,24 @@ instances require a shared database. No paid storage is provisioned by this repo
     python christmas_tree_3d.py --time 15
     python -m unittest -v test_server.py
     node test_scene.cjs
+    node test_ui.cjs
 
 The HTTP tests exercise real request parsing, separate visitor cookies, shared
 messages, validation, rate limits, idempotency and asset isolation in-process.
 Canvas/music tests use API mocks, not a real browser or real YouTube playback.
 geometry.js is generated from make_model() in christmas_tree_3d.py.
+
+## Chat connection diagnosis
+
+The page and /api/chat must be served by the same Python Web Service. Open
+/healthz on the deployed service: it must return JSON with ok: true. If /api/chat
+returns an HTML page or 404, check the URL and Render Start Command (python
+server.py). A Static Site cannot run this backend. The client now waits up to
+70 seconds for a sleeping service, retries on reconnect/send, and refreshes an
+expired visitor cookie before retrying a message. Messages stay in the input
+when sending fails. The normal UI shows only anonymous chat and its input.
+
+YouTube errors 101/150 mean embedding is disabled by the video owner. Autoplay
+or volume changes do not remove that restriction: an embeddable source is
+required. Real deployment connectivity and music playback must be verified
+against the actual Render URL and browser.

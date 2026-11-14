@@ -19,21 +19,18 @@
     <pre id="stats" aria-hidden="true" hidden></pre>
     <div class="controls">
       <button id="music-toggle" type="button" aria-pressed="false" aria-controls="music-panel">음악 재생</button>
+      <label class="volume-control" for="music-volume"><span>&#48380;&#47464;</span><input id="music-volume" type="range" min="0" max="100" value="40" aria-label="Music volume"><output id="volume-value" for="music-volume">40%</output></label>
       <button id="replay" type="button">처음부터</button>
       <button id="toggle" type="button">일시정지</button>
     </div>
     <p id="music-status" role="status"></p>
     <noscript>애니메이션을 보려면 JavaScript를 켜 주세요.</noscript>
   </main>
-  <aside id="chat-panel" aria-labelledby="chat-title">
-    <header class="chat-header"><div><span class="eyebrow">AROUND THE TREE</span><h1 id="chat-title">트리 옆 이야기</h1></div><span class="live-dot" aria-hidden="true"></span></header>
-    <p class="chat-intro">이름 없이 건네는 작은 인사.</p>
-    <div id="messages" role="log" aria-label="익명 대화" aria-live="off"><p class="chat-empty">따뜻한 이야기를 기다리고 있어요.</p></div>
+  <aside id="chat-panel" aria-label="Anonymous chat">
+    <div id="messages" role="log" aria-label="Messages" aria-live="polite"></div>
     <form id="chat-form">
-      <div class="chat-identity"><span id="chat-name">익명으로 연결 중</span><span id="chat-count">0/300</span></div>
-      <label class="sr-only" for="chat-input">채팅 메시지</label>
-      <div class="chat-compose"><input id="chat-input" name="message" maxlength="300" placeholder="메리 크리스마스!" autocomplete="off" required><button id="chat-send" type="submit" disabled>보내기</button></div>
-      <p id="chat-status" role="status">채팅에 연결하고 있어요.</p>
+      <div class="chat-compose"><label for="chat-input">&#51061;&#47749; :</label><input id="chat-input" name="message" maxlength="300" autocomplete="off" required><button id="chat-send" type="submit">&#48372;&#45236;&#44592;</button></div>
+      <p id="chat-status" role="status" hidden></p>
     </form>
   </aside>
   <aside id="music-panel" aria-hidden="true" inert hidden>

@@ -4,18 +4,29 @@ const chatInput = document.querySelector("#chat-input");
 const chatSend = document.querySelector("#chat-send");
 const chatList = document.querySelector("#messages");
 const chatStatus = document.querySelector("#chat-status");
-const chatName = document.querySelector("#chat-name");
-const chatCount = document.querySelector("#chat-count");
-let chatTimer, chatBusy = false, chatConnected = false, sending = false;
-let pendingMessage = null, lastSnapshot = "";
-async function chatRequest(options) {
-  const response = await fetch("/api/chat", {credentials: "same-origin", cache: "no-store",
-    signal: AbortSignal.timeout(12000), ...options});
-  if (!response.headers.get("content-type")?.includes("application/json"))
-    throw new Error("채팅 서버에 연결할 수 없어요.");
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "잠시 후 다시 시도해 주세요.");
-  return data;
+let chatTimer, chatFlight = null, chatConnected = false, sending = false;
+let pendingMessage = null, lastSnapshot = "", chatError = "";
+async function chatRequest(options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 70000);
+  try {
+    const response = await fetch("/api/chat", {credentials: "same-origin", cache: "no-store",
+      ...options, signal: controller.signal});
+    if (!response.headers.get("content-type")?.includes("application/json")) {
+      const error = new Error(response.status === 404
+        ? "이 주소에는 채팅 서버가 없어요. Web Service 주소로 접속해 주세요."
+        : "채팅 서버가 응답하지 않아요. 잠시 후 다시 보내 주세요.");
+      error.status = response.status;
+      throw error;
+    }
+    const data = await response.json();
+    if (!response.ok) {
+      const error = new Error(data.error || "채팅 연결에 실패했어요.");
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  } finally { clearTimeout(timer); }
 }
 function showMessages(messages) {
   const snapshot = JSON.stringify(messages);
@@ -24,73 +35,78 @@ function showMessages(messages) {
   const oldScroll = chatList.scrollTop;
   lastSnapshot = snapshot;
   const fragment = document.createDocumentFragment();
-  if (!messages.length) {
-    const empty = document.createElement("p");
-    empty.className = "chat-empty";
-    empty.textContent = "조용한 겨울밤, 첫 인사를 남겨 주세요.";
-    fragment.append(empty);
-  }
   for (const message of messages) {
-    const item = document.createElement("article");
+    const item = document.createElement("p");
     item.className = "message" + (message.mine ? " mine" : "");
-    const meta = document.createElement("div");
-    meta.className = "message-meta";
     const name = document.createElement("span");
-    name.textContent = message.name + (message.mine ? " · 나" : "");
-    const time = document.createElement("time");
-    const date = new Date(message.created * 1000);
-    time.dateTime = date.toISOString();
-    time.textContent = date.toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit", hour12: false});
-    const text = document.createElement("p");
-    text.textContent = message.text;
-    meta.append(name, time); item.append(meta, text); fragment.append(item);
+    name.className = "message-name"; name.textContent = "익명 : ";
+    const text = document.createElement("span"); text.textContent = message.text;
+    item.append(name, text); fragment.append(item);
   }
   chatList.replaceChildren(fragment);
   chatList.scrollTop = stick ? chatList.scrollHeight : oldScroll;
 }
+function connectChat() {
+  if (chatFlight) return chatFlight;
+  chatFlight = (async () => {
+    try {
+      const data = await chatRequest();
+      if (!Array.isArray(data.messages)) throw new Error("채팅 서버 응답을 확인해 주세요.");
+      showMessages(data.messages); chatConnected = true; chatError = "";
+      chatSend.title = "";
+      return true;
+    } catch (error) {
+      chatConnected = false;
+      chatError = error.name === "AbortError" ? "서버 시작이 지연되고 있어요. 다시 보내 주세요." : error.message;
+      chatSend.title = chatError;
+      return false;
+    } finally { chatFlight = null; }
+  })();
+  return chatFlight;
+}
 async function pollChat() {
   clearTimeout(chatTimer);
-  if (chatBusy || document.hidden) return;
-  chatBusy = true;
-  try {
-    const data = await chatRequest();
-    chatConnected = true;
-    chatName.textContent = data.name;
-    showMessages(data.messages);
-    if (!sending) chatStatus.textContent = "연결됨 · 모두에게 보이는 대화";
-  } catch (_) {
-    chatConnected = false;
-    chatStatus.textContent = "연결을 기다리고 있어요. 잠시 후 자동으로 다시 연결해요.";
-  } finally {
-    chatBusy = false;
-    chatSend.disabled = !chatConnected || sending;
-    chatTimer = setTimeout(pollChat, chatConnected ? 2500 : 8000);
-  }
+  if (document.hidden) return;
+  await connectChat();
+  if (!document.hidden) chatTimer = setTimeout(pollChat, chatConnected ? 2500 : 8000);
 }
-chatInput.addEventListener("input", () => { chatCount.textContent = chatInput.value.length + "/300"; });
+function requestId() {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), x => x.toString(16).padStart(2, "0")).join("");
+}
 chatForm.addEventListener("submit", async event => {
   event.preventDefault();
   const text = chatInput.value.trim();
-  if (!text || sending || !chatConnected) return;
-  sending = true; chatSend.disabled = true;
-  if (!pendingMessage || pendingMessage.text !== text)
-    pendingMessage = {text, requestId: crypto.randomUUID()};
+  if (!text || sending) return;
+  sending = true; chatSend.disabled = true; chatSend.textContent = "…";
+  chatStatus.textContent = ""; chatStatus.hidden = true;
   try {
-    await chatRequest({method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify(pendingMessage)});
+    if (!chatConnected && !await connectChat()) throw new Error(chatError);
+    if (!pendingMessage || pendingMessage.text !== text)
+      pendingMessage = {text, requestId: requestId()};
+    const options = {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(pendingMessage)};
+    try { await chatRequest(options); }
+    catch (error) {
+      if (error.status !== 401) throw error;
+      if (!await connectChat()) throw new Error(chatError);
+      await chatRequest(options);
+    }
     if (chatInput.value.trim() === text) chatInput.value = "";
-    chatCount.textContent = chatInput.value.length + "/300";
     pendingMessage = null;
-    chatStatus.textContent = "보냈어요.";
-    await pollChat();
+    // Wait for an older poll, then fetch again so the sent message is included.
+    if (chatFlight) await chatFlight;
+    await connectChat();
     chatList.scrollTop = chatList.scrollHeight;
   } catch (error) {
-    chatStatus.textContent = error.message || "보내지 못했어요. 다시 시도해 주세요.";
+    chatStatus.textContent = error.name === "AbortError" ? "전송이 지연됐어요. 다시 보내 주세요." : error.message;
+    chatStatus.hidden = false;
   } finally {
-    sending = false; chatSend.disabled = !chatConnected;
+    sending = false; chatSend.disabled = false; chatSend.textContent = "보내기";
   }
 });
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) pollChat(); else clearTimeout(chatTimer);
 });
+window.addEventListener("online", pollChat);
 pollChat();
