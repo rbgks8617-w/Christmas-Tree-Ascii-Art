@@ -68,6 +68,8 @@ async function pollChat() {
   clearTimeout(chatTimer);
   if (document.hidden) return;
   await connectChat();
+  // Visibility and online events can await the same request. Keep one timer.
+  clearTimeout(chatTimer);
   if (!document.hidden) chatTimer = setTimeout(pollChat, chatConnected ? 2500 : 8000);
 }
 function requestId() {

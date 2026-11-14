@@ -41,8 +41,10 @@ to a random secret to keep signed visitor cookies stable across restarts.
 Anonymous names are assigned by signed HTTP-only cookies. All visitors share
 one room, refreshed every 2.5 seconds. Messages are limited to 300 characters,
 with send rate limits, safe text rendering and duplicate-send protection.
-The UI shows the latest 100 messages from the last 24 hours. Storage retains at
-most 500 messages for 24 hours; it is not a permanent conversation archive.
+The UI shows the latest 100 messages from the last 24 hours. Each new message
+prunes records older than 24 hours and keeps at most 500. Without new messages,
+older records may remain in storage and in the admin list until the next write.
+This is not a permanent conversation archive.
 
 SQLite defaults to data/chat.sqlite3. On Render's ephemeral filesystem, messages
 can disappear on restart/redeploy. If durable storage is needed, attach a
@@ -57,10 +59,11 @@ instances require a shared database. No paid storage is provisioned by this repo
     python -m unittest -v test_server.py
     node test_scene.cjs
     node test_ui.cjs
+    node test_admin.cjs
 
 The HTTP tests exercise real request parsing, separate visitor cookies, shared
 messages, validation, rate limits, idempotency and asset isolation in-process.
-Canvas/audio tests use mocks, not a real browser or speaker playback.
+Canvas/audio/admin tests use mocks, not a real browser or speaker playback.
 geometry.js is generated from make_model() in christmas_tree_3d.py.
 
 ## Chat connection diagnosis

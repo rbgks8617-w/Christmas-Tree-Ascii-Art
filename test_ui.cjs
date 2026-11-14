@@ -43,6 +43,29 @@ function element() {
  assert(!fs.readFileSync("music.js","utf8").includes("youtube"));
  console.log("Local audio, autoplay fallback, saved volume, mute, pause, replay and error passed");
 })().catch(error=>{console.error(error);process.exitCode=1});
+
+(async () => {
+ const ids = ["chat-form", "chat-input", "chat-send", "messages", "chat-status"];
+ const elements = Object.fromEntries(ids.map(id => ["#" + id, element()]));
+ const timers = new Map(), events = {};
+ let sequence = 0, resolveRequest, calls = 0;
+ const context = vm.createContext({AbortController,
+  window: {addEventListener(name, fn) { events[name] = fn; }},
+  document: {hidden: false, querySelector: id => elements[id], createElement: element,
+    createDocumentFragment: element, addEventListener(name, fn) { events[name] = fn; }},
+  setTimeout(fn, delay) { const id = ++sequence; timers.set(id, {fn, delay}); return id; },
+  clearTimeout(id) { timers.delete(id); },
+  fetch() { calls++; return new Promise(resolve => { resolveRequest = resolve; }); },
+ });
+ vm.runInContext(fs.readFileSync("chat.js", "utf8"), context);
+ events.online(); events.visibilitychange();
+ assert.equal(calls, 1, "Reconnect events share the pending request");
+ resolveRequest({ok: true, headers: {get: () => "application/json"}, json: async () => ({messages: []})});
+ await new Promise(setImmediate);
+ assert.equal(timers.size, 1, "Overlapping reconnects schedule only one poll");
+ assert.equal([...timers.values()][0].delay, 2500);
+ console.log("Overlapping chat reconnects keep one polling timer");
+})().catch(error => { console.error(error); process.exitCode = 1; });
 (async()=>{
  const ids=["chat-form","chat-input","chat-send","messages","chat-status"];
  const elements=Object.fromEntries(ids.map(id=>["#"+id,element()]));

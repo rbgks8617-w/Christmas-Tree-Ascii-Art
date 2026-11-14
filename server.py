@@ -53,7 +53,9 @@ class Handler(BaseHTTPRequestHandler):
         except CookieError:
             value = ""
         token, _, sig = value.partition(".")
-        valid = bool(re.fullmatch(r"[a-f0-9]{32}", token)) and hmac.compare_digest(signature(token), sig)
+        valid = (bool(re.fullmatch(r"[a-f0-9]{32}", token))
+                 and bool(re.fullmatch(r"[a-f0-9]{64}", sig))
+                 and hmac.compare_digest(signature(token), sig))
         if not valid:
             token = secrets.token_hex(16)
         return token, valid
@@ -183,7 +185,7 @@ class Handler(BaseHTTPRequestHandler):
             text.encode("utf-8")
             if not 1 <= len(text) <= 300 or not re.fullmatch(r"[a-zA-Z0-9-]{8,80}", request_id):
                 raise ValueError()
-        except (ValueError, UnicodeDecodeError):
+        except (ValueError, UnicodeError, RecursionError):
             return self.reply(400, {"error": "1~300자의 메시지를 입력해 주세요."})
         now = time.time()
         # Use only the trusted direct peer for rate limiting; do not trust client XFF.

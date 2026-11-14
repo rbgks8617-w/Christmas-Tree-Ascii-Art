@@ -4,29 +4,30 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 import server
 
 class ChatTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.temp = tempfile.TemporaryDirectory()
-        server.DB = Path(cls.temp.name) / "chat.sqlite3"
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        for name, value in (("DB", Path(temp.name) / "chat.sqlite3"), ("LIMITS", {})):
+            replacement = patch.object(server, name, value)
+            replacement.start()
+            self.addCleanup(replacement.stop)
         server.initialize()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp.cleanup()
 
     def client(self):
         return {}
 
-    def raw_request(self, client, path="/api/chat", body=None, origin=None, extra_headers=None, method=None):
+    def raw_request(self, client, path="/api/chat", body=None, origin=None, extra_headers=None, method=None, raw_body=None):
         import io
         from email.parser import BytesParser
-        payload = json.dumps(body).encode() if body is not None else b""
-        headers = [f"{method or ('POST' if body is not None else 'GET')} {path} HTTP/1.0", "Host: localhost"]
+        has_body = body is not None or raw_body is not None
+        payload = raw_body if raw_body is not None else json.dumps(body).encode() if has_body else b""
+        headers = [f"{method or ('POST' if has_body else 'GET')} {path} HTTP/1.0", "Host: localhost"]
         headers += [f"{key}: {value}" for key, value in (extra_headers or {}).items()]
-        if body is not None:
+        if has_body:
             headers += ["Content-Type: application/json", f"Content-Length: {len(payload)}"]
         if origin:
             headers += ["Origin: " + origin]
@@ -128,19 +129,35 @@ class ChatTests(unittest.TestCase):
     def test_music_streaming(self):
         client = self.client()
         path = server.ROOT / "assets" / "christmas.mp3"
-        source = path.read_bytes()
-        self.assertEqual(len(source), 22814974)
+        self.assertGreater(path.stat().st_size, 32)
+        with path.open("rb") as audio:
+            first = audio.read(32)
+            audio.seek(-32, 2)
+            last = audio.read(32)
         status, body = self.raw_request(client, "/assets/christmas.mp3", extra_headers={"Range": "bytes=0-31"})
         self.assertEqual(status, 206)
-        self.assertEqual(body, source[:32])
+        self.assertEqual(body, first)
         status, body = self.raw_request(client, "/assets/christmas.mp3", extra_headers={"Range": "bytes=-32"})
         self.assertEqual(status, 206)
-        self.assertEqual(body, source[-32:])
+        self.assertEqual(body, last)
         status, body = self.raw_request(client, "/assets/christmas.mp3", extra_headers={"Range": "bytes=99999999-"})
         self.assertEqual(status, 416)
         status, body = self.raw_request(client, "/assets/christmas.mp3", method="HEAD")
         self.assertEqual(status, 200)
         self.assertEqual(body, b"")
+
+    def test_malformed_cookie_and_nested_json(self):
+        # SimpleCookie decodes this ASCII octal escape to a non-ASCII signature.
+        invalid = {"cookie": 'visitor="' + "a" * 32 + r'.\351"'}
+        self.assertEqual(self.request(dict(invalid), body={"text": "test", "requestId": "invalid-cookie"})[0], 401)
+        visitor = dict(invalid)
+        self.assertEqual(self.request(visitor)[0], 200)
+        self.assertNotEqual(visitor["cookie"], invalid["cookie"])
+        deeply_nested = b"[" * 1200 + b"0" + b"]" * 1200
+        for path in ("/api/chat", "/api/admin/login"):
+            status, _ = self.raw_request(visitor, path, raw_body=deeply_nested)
+            self.assertEqual(status, 400)
+        self.assertEqual(self.request(visitor, "/healthz")[0], 200)
 
     def test_assets_and_health(self):
         client = self.client()

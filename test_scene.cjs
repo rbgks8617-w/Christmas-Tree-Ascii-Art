@@ -27,7 +27,7 @@ for(const [width,height,reduced] of [[444,530,false],[360,429,false],[756,900,tr
   assert(this.globalAlpha>=0&&this.globalAlpha<=1);
   commands.push({char,x,y,color:this.fillStyle,alpha:this.globalAlpha});
  }};
- for(const id of ["#toggle","#replay","#time","#stats"])elements[id]={setAttribute(){},addEventListener(e,fn){events[id+e]=fn}};
+ for(const id of ["#toggle","#replay","#time"])elements[id]={setAttribute(){},addEventListener(e,fn){events[id+e]=fn}};
  elements["#scene"]={getContext:()=>ctx,getBoundingClientRect:()=>({width,height})};
  const doc={hidden:false,querySelector:id=>elements[id],addEventListener(e,fn){events[e]=fn}};
  const env=vm.createContext({document:doc,devicePixelRatio:2,matchMedia:()=>({matches:reduced,addEventListener(){}}),

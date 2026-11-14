@@ -5,7 +5,6 @@ const ctx = canvas.getContext("2d", {alpha: false});
 const button = document.querySelector("#toggle");
 const replay = document.querySelector("#replay");
 const timeLabel = document.querySelector("#time");
-const stats = document.querySelector("#stats");
 const motion = matchMedia("(prefers-reduced-motion: reduce)");
 const tau = 2 * Math.PI;
 const tilt = 18 * Math.PI / 180;
@@ -120,13 +119,11 @@ function draw() {
   depth.fill(-Infinity);
   opacity.fill(1);
   const phase = Math.max(0, elapsed);
-  const rotation = elapsed % 20;
-  const angle = rotation * tau / 20;
+  const angle = (elapsed % 20) * tau / 20;
   const cosine = Math.cos(angle);
   const sine = Math.sin(angle);
   const centerX = width / 2;
   const floorY = height * 0.79;
-  let lights = 0;
 
   for (const flake of snow) {
     const drift = 0.007 * Math.sin(elapsed * 0.75 + flake.seed * 21);
@@ -148,7 +145,6 @@ function draw() {
     if (!state) continue;
     const kind = model[i + 8];
     let [x, y, z, char, alpha] = state;
-    if (kind === 4 && alpha > 0.95) lights++;
     if (kind !== 6) {
       const rotatedX = x * cosine - z * sine;
       z = x * sine + z * cosine;
@@ -182,7 +178,6 @@ function draw() {
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
   let previous = -1;
-  let count = 0;
   for (let i = 0; i < glyphs.length; i++) {
     if (!glyphs[i]) continue;
     if (ink[i] !== previous) {
@@ -192,7 +187,6 @@ function draw() {
     ctx.globalAlpha = opacity[i];
     ctx.fillText(String.fromCharCode(glyphs[i]),
       (i % columns) * cellWidth, Math.floor(i / columns) * cellHeight);
-    count++;
   }
 
   // The glow is a second pass of the same ASCII glyphs.
@@ -209,8 +203,6 @@ function draw() {
   ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
   timeLabel.textContent = "t " + phase.toFixed(2).padStart(5, "0") + "s";
-  stats.textContent = "rotation " + (rotation * 18).toFixed(2) + "\u00b0   lights " + lights +
-    "\nletters " + count.toLocaleString("en-US");
 }
 
 function tick(timestamp) {

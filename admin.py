@@ -63,7 +63,7 @@ def handle(handler, db_path):
         body = json.loads(handler.rfile.read(size))
         if not isinstance(body, dict):
             raise ValueError()
-    except (ValueError, UnicodeError):
+    except (ValueError, UnicodeError, RecursionError):
         handler.reply(400, {"error": "요청 형식이 올바르지 않아요."})
         return True
     if method == "POST" and path == "/api/admin/login":
