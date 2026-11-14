@@ -68,13 +68,34 @@ def make_model(detail=1):
                     char, kind = rng.choice(".:+*"), 1
                 add(x, yy, z, char, color, 1.2 + 5.1 * fraction + 0.32 * s, kind)
 
-    for row in range(150):
-        y = 0.04 + row / 149 * (TREE_TOP - 0.04)
-        radius = 0.018 + 0.062 * (1 - y / TREE_TOP)
-        for col in range(25):
-            angle = math.tau * col / 25
-            add(radius * math.cos(angle), y, radius * math.sin(angle), "|",
-                (111, 79, 48), 0, 8)
+    # Tapered, slightly crooked trunk with bark grooves, roots and bare boughs.
+    for row in range(180):
+        y = 0.04 + row / 179 * (TREE_TOP - 0.04)
+        radius = 0.012 + 0.085 * (1 - y / TREE_TOP) ** 1.3 + 0.025 * math.exp(-y * 9)
+        bend = 0.018 * math.sin(y * 2.4)
+        for col in range(32):
+            angle = math.tau * col / 32
+            groove = 0.85 + 0.15 * math.sin(angle * 9 + y * 3)
+            tone = (0.72 + 0.28 * math.cos(angle - 0.7)) * groove
+            add(bend + radius * groove * math.cos(angle), y, radius * groove * math.sin(angle),
+                ":|;|"[(col + row // 13) % 4], tuple(int(c * tone) for c in (157, 111, 69)), 0, 8)
+    for branch in range(42):
+        y = 0.35 + branch / 42 * 2.5
+        angle = branch * 2.39996
+        length = envelope(y) * 0.52
+        for step in range(45):
+            u = step / 44
+            for side in (-1, 0, 1):
+                radius = length * u
+                add(radius * math.cos(angle) + side * 0.008 * (1 - u),
+                    y + 0.12 * u - 0.08 * u * u, radius * math.sin(angle),
+                    ":" if u > 0.8 else "=", (108, 77, 49), 0, 8)
+    for root in range(7):
+        angle = root * math.tau / 7
+        for step in range(36):
+            u = step / 35
+            add((0.07 + 0.2 * u) * math.cos(angle), 0.09 * (1 - u) + 0.015,
+                (0.07 + 0.2 * u) * math.sin(angle), "=", (121, 86, 55), 0, 8)
 
     # A gold garland with sagging loops and 170 separate bulbs.
     for index in range(round(2600 * detail)):
@@ -85,7 +106,7 @@ def make_model(detail=1):
         radius = envelope(y) + 0.035
         tone = rng.uniform(0.8, 1.2)
         add(radius * math.cos(angle), y, radius * math.sin(angle), rng.choice(".:-=+"),
-            (int(199 * tone), int(166 * tone), int(79 * tone)), 4.4 + 3 * u, 2)
+            (int(199 * tone), int(166 * tone), int(79 * tone)), 4.4 + 4.2 * u, 2)
     for index in range(170):
         u = index / 169
         angle = math.tau * 3.6 * u + 0.9
@@ -193,6 +214,10 @@ def animate_point(point, index, elapsed):
     age = elapsed - point.reveal
     if age >= 3.6:
         return x, y, z, char, 1.0
+    if point.kind == 2:
+        if age <= 0:
+            return None
+        return x, y, z, "*" if age < 0.12 else char, smoothstep(age / 0.22)
     if point.kind == 6:
         if age <= 0:
             return None
@@ -202,24 +227,17 @@ def animate_point(point, index, elapsed):
         return x, y, z, char, smoothstep(age / 0.45)
 
     seed = (index * 0.61803398875) % 1
-    spread = (index * 0.7548776662) % 1
     foliage = point.kind <= 1
-    age -= seed * (0.4 if foliage else 1.5)
+    age -= seed * (0.4 if foliage else 0.9)
     if age <= 0:
         return None
-    progress = min(1, age / (1.0 if foliage else 2.1))
+    progress = min(1, age / (1.0 if foliage else 1.6))
     ease = smoothstep(progress)
     remaining = 1 - ease
     if foliage:
         x *= ease
         z *= ease
         y += 0.10 * math.sin(seed * math.tau + progress * 8) * remaining
-    else:
-        orbit = seed * math.tau + ease * 3
-        radius = (0.38 + spread * 0.6) * remaining
-        x += radius * math.sin(orbit)
-        z += radius * math.cos(orbit)
-        y += (0.15 + spread * 0.55) * remaining
     if progress < 0.55:
         char = "."
     elif progress < 0.85:

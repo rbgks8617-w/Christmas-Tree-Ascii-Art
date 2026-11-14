@@ -1,39 +1,63 @@
 # ASCII Christmas Tree
 
-A detailed 3D ASCII Christmas scene with snow-covered branches, gold garlands,
-170 warm lights, red and gold ornaments, gifts, a woven rug, and a glowing star.
+Run the scene and shared anonymous chat together:
 
-The scene starts with the full trunk already standing. Leaves grow outward from
-it, then particles gradually gather into garlands, ornaments and presents. The
-star descends from the sky and settles with a soft, pulsing glow. Construction
-plays once, after which the completed tree keeps rotating every 20 seconds.
-The controls pause the animation or replay construction. Reduced-motion
-preferences show the completed tree paused.
+    python server.py
 
-For local viewing, run this command in the project directory and open
-http://localhost:8000:
+Open http://localhost:8000. Python 3.10+ is sufficient; no packages are required.
+Opening index.html or using a static file server runs the animation only.
 
-    python -m http.server 8000
+## Animation and layout
 
-The music button loads the official YouTube player for KRtvCCDbLgQ and repeats
-that song. A click is required to start sound; some browsers may require another
-click after loading. The player stays visible with its own playback controls.
-Playback requires internet access and permission from YouTube and the uploader
-to embed the track. If playback is unavailable, the panel shows a message and a
-YouTube Music link. Opening index.html directly still runs the animation, but
-music requires an HTTP(S) address.
+- A tapered, textured trunk with bare branches and roots is present from the start.
+- Leaves grow from it. Ornaments and gifts materialize as particles at their final
+  positions without flying in from elsewhere.
+- The gold ribbon winds from the bottom to the top along its spiral.
+- The star descends, settles, and twinkles. The completed tree keeps rotating.
+- Desktop: tree on the left, chat on the right. Mobile: tree at the top, chat below.
+- The music button controls the looping YouTube track KRtvCCDbLgQ. The video frame
+  is outside the visible layout, so its thumbnail does not take up screen space.
+  Sound requires a click and internet access. YouTube/browser restrictions can
+  prevent playback, particularly for offscreen players; live playback needs to
+  be checked on the target desktop/mobile browsers. There is no downloaded audio.
 
-For GitHub Pages, publish the main branch from / (root). No build step is required.
+## Render deployment
 
-The Python terminal version uses the standard library. Run:
+Chat requires a **Web Service**, not a Static Site. Existing Static Sites cannot
+run server.py: create a Web Service from this same GitHub repository, or use the
+included render.yaml Blueprint. Use these settings:
+
+| Setting | Value |
+| --- | --- |
+| Runtime | Python 3 |
+| Build command | python -m compileall -q server.py |
+| Start command | python server.py |
+| Health check | /healthz |
+
+The server binds to 0.0.0.0 and Render's PORT automatically. The Blueprint uses
+one free instance and generates CHAT_SECRET. For manual setup, set CHAT_SECRET
+to a random secret to keep signed visitor cookies stable across restarts.
+
+Anonymous names are assigned by signed HTTP-only cookies. All visitors share
+one room, refreshed every 2.5 seconds. Messages are limited to 300 characters,
+with send rate limits, safe text rendering and duplicate-send protection.
+The UI shows the latest 100 messages from the last 24 hours. Storage retains at
+most 500 messages for 24 hours; it is not a permanent conversation archive.
+
+SQLite defaults to data/chat.sqlite3. On Render's ephemeral filesystem, messages
+can disappear on restart/redeploy. If durable storage is needed, attach a
+persistent disk separately and set CHAT_DB to a path on it, such as
+/var/data/chat.sqlite3. This setup is for a single server instance; multiple
+instances require a shared database. No paid storage is provisioned by this repo.
+
+## Terminal version and checks
 
     python christmas_tree_3d.py
-
-To preview the completed tree:
-
     python christmas_tree_3d.py --time 15
+    python -m unittest -v test_server.py
+    node test_scene.cjs
 
-The JavaScript model is generated from make_model() in christmas_tree_3d.py.
-The scene is based on the supplied recording with customized construction and
-star animation. Its geometry, ornament positions and snow particles are newly
-generated. Music is available in the browser version only.
+The HTTP tests exercise real request parsing, separate visitor cookies, shared
+messages, validation, rate limits, idempotency and asset isolation in-process.
+Canvas/music tests use API mocks, not a real browser or real YouTube playback.
+geometry.js is generated from make_model() in christmas_tree_3d.py.

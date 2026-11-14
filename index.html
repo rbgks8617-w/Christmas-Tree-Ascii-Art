@@ -10,23 +10,34 @@
   <script defer src="./geometry.js"></script>
   <script defer src="./scene.js"></script>
   <script defer src="./music.js"></script>
+  <script defer src="./chat.js"></script>
 </head>
 <body>
   <main aria-label="ASCII 크리스마스 트리">
     <canvas id="scene" role="img" aria-label="기둥에 잎이 자라고 장식과 선물이 입자로 모이며, 하늘에서 별이 내려와 반짝이는 회전 ASCII 크리스마스 트리"></canvas>
     <span id="time" aria-hidden="true"></span>
-    <pre id="stats" aria-hidden="true"></pre>
+    <pre id="stats" aria-hidden="true" hidden></pre>
     <div class="controls">
       <button id="music-toggle" type="button" aria-pressed="false" aria-controls="music-panel">음악 재생</button>
       <button id="replay" type="button">처음부터</button>
       <button id="toggle" type="button">일시정지</button>
     </div>
+    <p id="music-status" role="status"></p>
     <noscript>애니메이션을 보려면 JavaScript를 켜 주세요.</noscript>
   </main>
-  <aside id="music-panel" aria-label="음악 플레이어" hidden>
+  <aside id="chat-panel" aria-labelledby="chat-title">
+    <header class="chat-header"><div><span class="eyebrow">AROUND THE TREE</span><h1 id="chat-title">트리 옆 이야기</h1></div><span class="live-dot" aria-hidden="true"></span></header>
+    <p class="chat-intro">이름 없이 건네는 작은 인사.</p>
+    <div id="messages" role="log" aria-label="익명 대화" aria-live="off"><p class="chat-empty">따뜻한 이야기를 기다리고 있어요.</p></div>
+    <form id="chat-form">
+      <div class="chat-identity"><span id="chat-name">익명으로 연결 중</span><span id="chat-count">0/300</span></div>
+      <label class="sr-only" for="chat-input">채팅 메시지</label>
+      <div class="chat-compose"><input id="chat-input" name="message" maxlength="300" placeholder="메리 크리스마스!" autocomplete="off" required><button id="chat-send" type="submit" disabled>보내기</button></div>
+      <p id="chat-status" role="status">채팅에 연결하고 있어요.</p>
+    </form>
+  </aside>
+  <aside id="music-panel" aria-hidden="true" inert hidden>
     <div id="music-mount"><div id="music-player"></div></div>
-    <p id="music-status" role="status"></p>
-    <a href="https://music.youtube.com/watch?v=KRtvCCDbLgQ" target="_blank" rel="noopener noreferrer">YouTube Music에서 열기</a>
   </aside>
 </body>
 </html>

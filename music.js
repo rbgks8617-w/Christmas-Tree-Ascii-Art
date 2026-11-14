@@ -44,6 +44,7 @@ function createMusicPlayer() {
         musicReady = true;
         musicButton.disabled = false;
         const frame = event.target.getIframe();
+        frame.tabIndex = -1;
         frame.title = "YouTube 음악 반복 재생";
         frame.setAttribute("allow", "autoplay; encrypted-media; fullscreen; picture-in-picture");
         frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
@@ -81,7 +82,7 @@ function createMusicPlayer() {
           150: "이 곡의 사이트 내 재생이 제한되어 있어요.",
           153: "유튜브가 사이트 주소를 확인하지 못했어요. 배포한 사이트에서 다시 열어 주세요.",
         };
-        musicFailure(messages[event.data] || "음악을 재생하지 못했어요. 아래 링크에서 곡을 확인할 수 있어요.");
+        musicFailure(messages[event.data] || "음악을 재생하지 못했어요. 잠시 후 다시 시도해 주세요.");
       },
     },
   });
@@ -89,7 +90,6 @@ function createMusicPlayer() {
 
 musicButton.addEventListener("click", () => {
   musicPanel.hidden = false;
-  document.body.classList.add("music-open");
   if (!["http:", "https:"].includes(window.location.protocol)) {
     musicFailure("음악은 웹 주소로 연 페이지에서 재생할 수 있어요. 배포된 사이트나 http://localhost:8000에서 열어 주세요.");
     return;
@@ -113,7 +113,7 @@ musicButton.addEventListener("click", () => {
   musicButton.disabled = true;
   musicButton.textContent = "음악 불러오는 중";
   musicStatus.textContent = "유튜브에 연결하고 있어요.";
-  musicWatchdog = setTimeout(() => musicFailure("음악 연결이 지연되고 있어요. 다시 시도하거나 아래 링크에서 열어 주세요."), 20000);
+  musicWatchdog = setTimeout(() => musicFailure("음악 연결이 지연되고 있어요. 다시 시도해 주세요."), 20000);
 
   if (window.YT && typeof YT.Player === "function") {
     createMusicPlayer();

@@ -82,6 +82,11 @@ function animatePoint(offset, time) {
   const kind = model[offset + 8];
   let age = time - model[offset + 7] / 100;
   if (kind >= 7 || age >= 3.6) return [x, y, z, char, 1];
+  // The ribbon is drawn along its ordered spiral, with a small bright leading tip.
+  if (kind === 2) {
+    if (age <= 0) return null;
+    return [x, y, z, age < 0.12 ? 42 : char, smoothstep(age / 0.22)];
+  }
   if (kind === 6) {
     if (age <= 0) return null;
     const progress = smoothstep(age / 3.2);
@@ -91,23 +96,16 @@ function animatePoint(offset, time) {
   }
   const index = offset / 9;
   const seed = index * 0.61803398875 % 1;
-  const spread = index * 0.7548776662 % 1;
   const foliage = kind <= 1;
-  age -= seed * (foliage ? 0.4 : 1.5);
+  age -= seed * (foliage ? 0.4 : 0.9);
   if (age <= 0) return null;
-  const progress = Math.min(1, age / (foliage ? 1 : 2.1));
+  const progress = Math.min(1, age / (foliage ? 1 : 1.6));
   const ease = smoothstep(progress);
   const remaining = 1 - ease;
   if (foliage) {
     x *= ease;
     z *= ease;
     y += 0.10 * Math.sin(seed * tau + progress * 8) * remaining;
-  } else {
-    const orbit = seed * tau + ease * 3;
-    const radius = (0.38 + spread * 0.6) * remaining;
-    x += radius * Math.sin(orbit);
-    z += radius * Math.cos(orbit);
-    y += (0.15 + spread * 0.55) * remaining;
   }
   if (progress < 0.55) char = 46;
   else if (progress < 0.85) char = 58;
