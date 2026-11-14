@@ -15,12 +15,11 @@ Opening index.html or using a static file server runs the animation only.
 - The gold ribbon winds from the bottom to the top along its spiral.
 - The star descends, settles, and twinkles. The completed tree keeps rotating.
 - Desktop: tree on the left, chat on the right. Mobile: tree at the top, chat below.
-- The music button controls the looping YouTube track KRtvCCDbLgQ. The video frame
-  is outside the visible layout, so its thumbnail does not take up screen space.
-  Music attempts autoplay on entry and falls back to a user gesture when blocked.
-  The volume slider is saved per browser. Internet access is required. YouTube/browser restrictions can
-  prevent playback, particularly for offscreen players; live playback needs to
-  be checked on the target desktop/mobile browsers. There is no downloaded audio.
+- Music plays directly from the supplied MP3 at assets/christmas.mp3 and loops.
+  No YouTube API, iframe or third-party music request is used.
+  Autoplay is attempted on entry, with a first-touch fallback if the browser blocks
+  sound. Volume is remembered per browser. The server supports HTTP byte ranges
+  for mobile playback and seeking without loading the entire audio into memory.
 
 ## Render deployment
 
@@ -61,7 +60,7 @@ instances require a shared database. No paid storage is provisioned by this repo
 
 The HTTP tests exercise real request parsing, separate visitor cookies, shared
 messages, validation, rate limits, idempotency and asset isolation in-process.
-Canvas/music tests use API mocks, not a real browser or real YouTube playback.
+Canvas/audio tests use mocks, not a real browser or speaker playback.
 geometry.js is generated from make_model() in christmas_tree_3d.py.
 
 ## Chat connection diagnosis
@@ -74,7 +73,6 @@ server.py). A Static Site cannot run this backend. The client now waits up to
 expired visitor cookie before retrying a message. Messages stay in the input
 when sending fails. The normal UI shows only anonymous chat and its input.
 
-YouTube errors 101/150 mean embedding is disabled by the video owner. Autoplay
-or volume changes do not remove that restriction: an embeddable source is
-required. Real deployment connectivity and music playback must be verified
-against the actual Render URL and browser.
+The existing static hostname christmas-tree-ascii-art.onrender.com redirects
+visitors to https://christmas-tree-ascii-art-server.onrender.com, where the
+Python server serves both the scene and /api/chat on the same origin.

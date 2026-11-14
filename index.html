@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#181c24">
   <meta name="referrer" content="strict-origin-when-cross-origin">
+  <script>
+    if (location.hostname === "christmas-tree-ascii-art.onrender.com") {
+      location.replace("https://christmas-tree-ascii-art-server.onrender.com" + location.pathname + location.search + location.hash);
+    }
+  </script>
   <title>ASCII Christmas Tree</title>
   <link rel="stylesheet" href="./styles.css">
   <script defer src="./geometry.js"></script>
@@ -18,7 +23,7 @@
     <span id="time" aria-hidden="true"></span>
     <pre id="stats" aria-hidden="true" hidden></pre>
     <div class="controls">
-      <button id="music-toggle" type="button" aria-pressed="false" aria-controls="music-panel">음악 재생</button>
+      <button id="music-toggle" type="button" aria-pressed="false">음악 재생</button>
       <label class="volume-control" for="music-volume"><span>&#48380;&#47464;</span><input id="music-volume" type="range" min="0" max="100" value="40" aria-label="Music volume"><output id="volume-value" for="music-volume">40%</output></label>
       <button id="replay" type="button">처음부터</button>
       <button id="toggle" type="button">일시정지</button>
@@ -33,8 +38,6 @@
       <p id="chat-status" role="status" hidden></p>
     </form>
   </aside>
-  <aside id="music-panel" aria-hidden="true" inert hidden>
-    <div id="music-mount"><div id="music-player"></div></div>
-  </aside>
+  <audio id="background-music" src="./assets/christmas.mp3" loop preload="metadata" hidden></audio>
 </body>
 </html>

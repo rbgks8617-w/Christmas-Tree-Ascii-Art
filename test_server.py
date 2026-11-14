@@ -20,11 +20,12 @@ class ChatTests(unittest.TestCase):
     def client(self):
         return {}
 
-    def raw_request(self, client, path="/api/chat", body=None, origin=None):
+    def raw_request(self, client, path="/api/chat", body=None, origin=None, extra_headers=None, method=None):
         import io
         from email.parser import BytesParser
         payload = json.dumps(body).encode() if body is not None else b""
-        headers = [f"{'POST' if body is not None else 'GET'} {path} HTTP/1.0", "Host: localhost"]
+        headers = [f"{method or ('POST' if body is not None else 'GET')} {path} HTTP/1.0", "Host: localhost"]
+        headers += [f"{key}: {value}" for key, value in (extra_headers or {}).items()]
         if body is not None:
             headers += ["Content-Type: application/json", f"Content-Length: {len(payload)}"]
         if origin:
@@ -77,6 +78,23 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.request(bob, "/server.py")[0], 404)
         with server.closing(sqlite3.connect(server.DB)) as db:
             self.assertEqual(db.execute("SELECT COUNT(*) FROM messages WHERE request_id=?", ("message-test-001",)).fetchone()[0], 1)
+
+    def test_music_streaming(self):
+        client = self.client()
+        path = server.ROOT / "assets" / "christmas.mp3"
+        source = path.read_bytes()
+        self.assertEqual(len(source), 22814974)
+        status, body = self.raw_request(client, "/assets/christmas.mp3", extra_headers={"Range": "bytes=0-31"})
+        self.assertEqual(status, 206)
+        self.assertEqual(body, source[:32])
+        status, body = self.raw_request(client, "/assets/christmas.mp3", extra_headers={"Range": "bytes=-32"})
+        self.assertEqual(status, 206)
+        self.assertEqual(body, source[-32:])
+        status, body = self.raw_request(client, "/assets/christmas.mp3", extra_headers={"Range": "bytes=99999999-"})
+        self.assertEqual(status, 416)
+        status, body = self.raw_request(client, "/assets/christmas.mp3", method="HEAD")
+        self.assertEqual(status, 200)
+        self.assertEqual(body, b"")
 
     def test_assets_and_health(self):
         client = self.client()

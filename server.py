@@ -72,6 +72,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
+        if path == "/assets/christmas.mp3":
+            return self.serve_music()
         if path == "/healthz":
             return self.reply(200, {"ok": True})
         if path == "/api/chat":
@@ -92,6 +94,63 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(body)
+
+    def do_HEAD(self):
+        if urlsplit(self.path).path == "/assets/christmas.mp3":
+            return self.serve_music(head=True)
+        self.send_response(404)
+        self.end_headers()
+
+    def serve_music(self, head=False):
+        path = ROOT / "assets" / "christmas.mp3"
+        if not path.is_file():
+            return self.reply(404, {"error": "Music file unavailable"})
+        size = path.stat().st_size
+        start, end = 0, size - 1
+        requested = self.headers.get("Range")
+        if requested:
+            match = re.fullmatch(r"bytes=(\d*)-(\d*)", requested)
+            try:
+                if not match or not any(match.groups()):
+                    raise ValueError()
+                first, last = match.groups()
+                if first:
+                    start = int(first)
+                    end = min(int(last), size - 1) if last else size - 1
+                else:
+                    if int(last) <= 0:
+                        raise ValueError()
+                    start = max(0, size - int(last))
+                if not 0 <= start <= end < size:
+                    raise ValueError()
+            except ValueError:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+        self.send_response(206 if requested else 200)
+        self.send_header("Content-Type", "audio/mpeg")
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Cache-Control", "public, max-age=3600")
+        if requested:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.end_headers()
+        if head:
+            return
+        try:
+            with path.open("rb") as audio:
+                audio.seek(start)
+                remaining = end - start + 1
+                while remaining:
+                    chunk = audio.read(min(65536, remaining))
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+            pass  # Seeking/pausing can close a browser's media request.
 
     def do_POST(self):
         if urlsplit(self.path).path != "/api/chat":
