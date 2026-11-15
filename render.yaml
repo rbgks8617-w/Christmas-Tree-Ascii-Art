@@ -3,7 +3,7 @@ services:
     name: christmas-tree
     runtime: python
     plan: free
-    buildCommand: python -m compileall -q server.py
+    buildCommand: pip install -r requirements.txt && python -m compileall -q server.py admin.py storage.py
     startCommand: python server.py
     healthCheckPath: /healthz
     envVars:

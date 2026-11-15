@@ -126,6 +126,21 @@ class ChatTests(unittest.TestCase):
             admin.SESSIONS.clear()
             admin.ATTEMPTS.clear()
 
+    def test_preservation_and_storage_failure(self):
+        import time
+        visitor = self.client()
+        self.request(visitor)
+        with server.closing(sqlite3.connect(server.DB)) as db, db:
+            db.execute("INSERT INTO messages(sender,request_id,name,text,created) VALUES(?,?,?,?,?)",
+                       ("old", "old-message", "anonymous", "keep forever", time.time()-172800))
+        server.initialize()
+        self.assertTrue(any(m["text"] == "keep forever" for m in self.request(visitor)[1]["messages"]))
+        with patch.object(server.storage, "connect", side_effect=OSError("secret connection detail")):
+            status, body = self.request(visitor, body={"text":"not stored", "requestId":"failed-write"})
+            self.assertEqual(status, 503)
+            self.assertNotIn("secret", str(body))
+        self.assertFalse(any(m["text"] == "not stored" for m in self.request(visitor)[1]["messages"]))
+
     def test_music_streaming(self):
         client = self.client()
         path = server.ROOT / "assets" / "christmas.mp3"

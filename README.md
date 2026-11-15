@@ -4,7 +4,7 @@ Run the scene and shared anonymous chat together:
 
     python server.py
 
-Open http://localhost:8000. Python 3.10+ is sufficient; no packages are required.
+Open http://localhost:8000. Python 3.10+ is required. Install requirements.txt for PostgreSQL; SQLite uses the standard library.
 Opening index.html or using a static file server runs the animation only.
 
 ## Animation and layout
@@ -30,7 +30,7 @@ included render.yaml Blueprint. Use these settings:
 | Setting | Value |
 | --- | --- |
 | Runtime | Python 3 |
-| Build command | python -m compileall -q server.py |
+| Build command | pip install -r requirements.txt |
 | Start command | python server.py |
 | Health check | /healthz |
 
@@ -41,16 +41,11 @@ to a random secret to keep signed visitor cookies stable across restarts.
 Anonymous names are assigned by signed HTTP-only cookies. All visitors share
 one room, refreshed every 2.5 seconds. Messages are limited to 300 characters,
 with send rate limits, safe text rendering and duplicate-send protection.
-The UI shows the latest 100 messages from the last 24 hours. Each new message
-prunes records older than 24 hours and keeps at most 500. Without new messages,
-older records may remain in storage and in the admin list until the next write.
-This is not a permanent conversation archive.
-
-SQLite defaults to data/chat.sqlite3. On Render's ephemeral filesystem, messages
-can disappear on restart/redeploy. If durable storage is needed, attach a
-persistent disk separately and set CHAT_DB to a path on it, such as
-/var/data/chat.sqlite3. This setup is for a single server instance; multiple
-instances require a shared database. No paid storage is provisioned by this repo.
+The UI shows the latest 100 messages. Messages are kept until an administrator
+explicitly deletes them; there is no age-based or count-based automatic deletion.
+SQLite remains the default until the verified Supabase cutover described in
+DEPLOYMENT.md. PostgreSQL uses server-only DATABASE_URL; no API secret reaches
+browser assets. Keep CHAT_SECRET unchanged to preserve anonymous identities.
 
 ## Terminal version and checks
 

@@ -9,6 +9,7 @@ import sqlite3
 import threading
 import time
 import admin
+import storage
 from collections import deque
 from contextlib import closing
 from http.cookies import SimpleCookie, CookieError
@@ -26,8 +27,11 @@ TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
          ".js": "text/javascript; charset=utf-8"}
 
 def initialize():
+    if storage.remote():
+        storage.check()
+        return
     DB.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(DB)) as db, db:
+    with closing(storage.connect(DB)) as db, db:
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("""CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT NOT NULL,
@@ -76,6 +80,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        try:
+            self.get_request()
+        except storage.ERRORS:
+            self.reply(503, {"error": "Database unavailable. Please retry."})
+
+    def get_request(self):
         if admin.handle(self, DB):
             return
         path = urlsplit(self.path).path
@@ -85,8 +95,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, {"ok": True})
         if path == "/api/chat":
             token, valid = self.identity()
-            with closing(sqlite3.connect(DB)) as db, db:
-                rows = db.execute("SELECT id, sender, name, text, created FROM messages WHERE created > ? ORDER BY id DESC LIMIT 100", (time.time() - 86400,)).fetchall()
+            with closing(storage.connect(DB)) as db, db:
+                rows = db.execute("SELECT id, sender, name, text, created FROM messages ORDER BY id DESC LIMIT 100").fetchall()
             messages = [{"id": r[0], "mine": r[1] == token, "name": r[2], "text": r[3], "created": r[4]} for r in reversed(rows)]
             return self.reply(200, {"name": "익명 " + token[:6].upper(), "messages": messages}, None if valid else token)
         name = "admin.html" if path in ("/admin", "/admin/") else "index.html" if path == "/" else path.removeprefix("/")
@@ -161,6 +171,12 @@ class Handler(BaseHTTPRequestHandler):
             pass  # Seeking/pausing can close a browser's media request.
 
     def do_POST(self):
+        try:
+            self.post_request()
+        except storage.ERRORS:
+            self.reply(503, {"error": "Database unavailable. Please retry."})
+
+    def post_request(self):
         if admin.handle(self, DB):
             return
         if urlsplit(self.path).path != "/api/chat":
@@ -190,7 +206,7 @@ class Handler(BaseHTTPRequestHandler):
         now = time.time()
         # Use only the trusted direct peer for rate limiting; do not trust client XFF.
         peer = hashlib.sha256((self.client_address[0] + SECRET.hex()).encode()).hexdigest()
-        with LOCK, closing(sqlite3.connect(DB)) as db, db:
+        with LOCK, closing(storage.connect(DB)) as db, db:
             previous = db.execute("SELECT id FROM messages WHERE sender=? AND request_id=?", (token, request_id)).fetchone()
             if previous:
                 return self.reply(200, {"id": previous[0]})
@@ -206,7 +222,6 @@ class Handler(BaseHTTPRequestHandler):
                 recent.append(now)
             name = "익명 " + token[:6].upper()
             result = db.execute("INSERT INTO messages(sender,request_id,name,text,created) VALUES(?,?,?,?,?)", (token, request_id, name, text, now))
-            db.execute("DELETE FROM messages WHERE created < ? OR id NOT IN (SELECT id FROM messages ORDER BY id DESC LIMIT 500)", (now - 86400,))
             message_id = result.lastrowid
         return self.reply(201, {"id": message_id})
 

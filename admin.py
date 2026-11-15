@@ -4,7 +4,7 @@ import hmac
 import json
 import os
 import secrets
-import sqlite3
+import storage
 import threading
 import time
 from contextlib import closing
@@ -46,7 +46,7 @@ def handle(handler, db_path):
         if not authenticated(handler):
             handler.reply(401, {"error": "관리자 로그인이 필요해요."})
         elif path == "/api/admin/messages":
-            with closing(sqlite3.connect(db_path)) as db:
+            with closing(storage.connect(db_path)) as db:
                 rows = db.execute("SELECT id, name, text, created FROM messages ORDER BY id DESC LIMIT 500").fetchall()
             handler.reply(200, {"messages": [{"id": r[0], "name": r[1], "text": r[2], "created": r[3]} for r in rows]})
         else:
@@ -113,7 +113,7 @@ def handle(handler, db_path):
         if type(message_id) is not int or message_id <= 0:
             handler.reply(400, {"error": "삭제할 메시지를 선택해 주세요."})
             return True
-        with closing(sqlite3.connect(db_path)) as db, db:
+        with closing(storage.connect(db_path)) as db, db:
             result = db.execute("DELETE FROM messages WHERE id=?", (message_id,))
         handler.reply(200, {"deleted": result.rowcount})
     elif method == "POST" and path == "/api/admin/clear":
@@ -122,7 +122,7 @@ def handle(handler, db_path):
         if body.get("confirm") != "DELETE" or type(through_id) is not int or through_id < 0:
             handler.reply(400, {"error": "삭제 확인이 필요해요."})
             return True
-        with closing(sqlite3.connect(db_path)) as db, db:
+        with closing(storage.connect(db_path)) as db, db:
             result = db.execute("DELETE FROM messages WHERE id<=?", (through_id,))
         handler.reply(200, {"deleted": result.rowcount})
     else:
