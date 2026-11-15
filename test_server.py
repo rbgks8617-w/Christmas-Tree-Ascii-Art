@@ -177,7 +177,7 @@ class ChatTests(unittest.TestCase):
     def test_assets_and_health(self):
         client = self.client()
         self.assertEqual(self.request(client, "/healthz")[0], 200)
-        for path in ["/", "/admin", "/admin.js", "/admin.css", "/styles.css", "/scene.js", "/chat.js", "/music.js", "/geometry.js"]:
+        for path in ["/", "/admin", "/admin.js", "/admin.css", "/styles.css", "/scene.js", "/chat.js", "/music.js", "/geometry.js", "/village.js", "/santa.js"]:
             status, content = self.raw_request(client, path)
             self.assertEqual(status, 200)
             self.assertGreater(len(content), 100)

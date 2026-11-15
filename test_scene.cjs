@@ -1,5 +1,5 @@
 const fs=require("node:fs"),vm=require("node:vm"),assert=require("node:assert/strict");
-const source=["geometry.js","scene.js"].map(file=>fs.readFileSync(file,"utf8")).join("\n");
+const source=["geometry.js","village.js","santa.js","scene.js"].map(file=>fs.readFileSync(file,"utf8")).join("\n");
 function inspectAnimation(){
  const trunk=[],star=[],gifts=[];
  for(let i=0;i<model.length;i+=9){
@@ -41,4 +41,23 @@ for(const [width,height,reduced] of [[444,530,false],[360,429,false],[756,900,tr
  }
  events["#replayclick"]();assert.equal(vm.runInContext("elapsed",env),0);
  console.log(width+"x"+height+" trunk, particles, star, persistent tree passed");
+}
+
+{
+ const scope=vm.createContext({});
+ vm.runInContext(fs.readFileSync("village.js","utf8")+fs.readFileSync("santa.js","utf8"),scope);
+ const capture=(name,time)=>{
+  scope.output=[];
+  vm.runInContext(name+"({columns:260,rows:145},"+time+",(...point)=>output.push(point))",scope);
+  return JSON.parse(JSON.stringify(scope.output));
+ };
+ const village=capture("drawVillage",0);
+ assert(village.filter(p=>p[2]==="~").length>=15,"Chimney smoke");
+ assert(village.every(p=>p[4]<0),"Scenery stays behind the tree");
+ assert.notDeepEqual(village,capture("drawVillage",2),"Windows and smoke animate");
+ const first=capture("drawSanta",12), later=capture("drawSanta",14);
+ assert(first.length>50 && later.length>50);
+ assert(later[0][0]<first[0][0],"Santa travels right to left");
+ assert.equal(capture("drawSanta",22).length,0,"Flight has a rest interval");
+ console.log("Village smoke, depth, changing lights and Santa flight passed");
 }

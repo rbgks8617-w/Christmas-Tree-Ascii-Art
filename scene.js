@@ -125,6 +125,17 @@ function draw() {
   const centerX = width / 2;
   const floorY = height * 0.79;
 
+  const put = (col, row, char, color, distance) => {
+    if(col<0 || col>=columns || row<0 || row>=rows) return;
+    const index=row*columns+col;
+    if(distance<depth[index]) return;
+    glyphs[index]=char.charCodeAt(0);
+    ink[index]=rgb(...color);
+    depth[index]=distance;
+  };
+  drawVillage(view, phase, put);
+  drawSanta(view, phase, put);
+
   for (const flake of snow) {
     const drift = 0.007 * Math.sin(elapsed * 0.75 + flake.seed * 21);
     const col = Math.floor((1 + flake.x + drift) % 1 * columns);
@@ -132,6 +143,7 @@ function draw() {
     const index = row * columns + col;
     const close = flake.seed > 0.96;
     const shine = 95 + 150 * flake.seed;
+    if (!close && depth[index] > -Infinity) continue;
     glyphs[index] = close ? 42 : flake.seed > 0.85 ? 43 : 46;
     ink[index] = rgb(shine, shine + 5, shine + 9);
     if (close) {

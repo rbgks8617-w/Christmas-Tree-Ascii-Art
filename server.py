@@ -22,7 +22,7 @@ DB = Path(os.environ.get("CHAT_DB", str(ROOT / "data" / "chat.sqlite3")))
 SECRET = os.environ.get("CHAT_SECRET", secrets.token_hex(32)).encode()
 LOCK = threading.Lock()
 LIMITS = {}
-ASSETS = {"index.html", "styles.css", "geometry.js", "scene.js", "music.js", "chat.js", "admin.html", "admin.js", "admin.css"}
+ASSETS = {"village.js", "santa.js", "index.html", "styles.css", "geometry.js", "scene.js", "music.js", "chat.js", "admin.html", "admin.js", "admin.css"}
 TYPES = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
          ".js": "text/javascript; charset=utf-8"}
 
