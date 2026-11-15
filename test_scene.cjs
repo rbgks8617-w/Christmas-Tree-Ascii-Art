@@ -21,7 +21,7 @@ function inspectAnimation(){
 }
 for(const [width,height,reduced] of [[444,530,false],[360,429,false],[756,900,true]]){
  let commands=[],callback=null;const events={},elements={};
- const ctx={globalAlpha:1,setTransform(){},measureText(){return {width:height/145*.91*.6}},fillRect(){commands=[]},fillText(char,x,y){
+ const ctx={globalAlpha:1,save(){},restore(){},beginPath(){},rect(){},clip(){},setTransform(){},measureText(){return {width:height/145*.91*.6}},fillRect(){commands=[]},fillText(char,x,y){
   assert(char.charCodeAt(0)>=32&&char.charCodeAt(0)<=126);
   assert(Number.isFinite(x)&&x>=0&&x<width&&y>=0&&y<height);
   assert(this.globalAlpha>=0&&this.globalAlpha<=1);

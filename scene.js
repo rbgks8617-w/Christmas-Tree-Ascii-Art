@@ -125,13 +125,14 @@ function draw() {
   const centerX = width / 2;
   const floorY = height * 0.79;
 
-  const put = (col, row, char, color, distance) => {
+  const put = (col, row, char, color, distance, environmentGlow = false) => {
     if(col<0 || col>=columns || row<0 || row>=rows) return;
     const index=row*columns+col;
     if(distance<depth[index]) return;
     glyphs[index]=char.charCodeAt(0);
     ink[index]=rgb(...color);
     depth[index]=distance;
+    bloom[index]=environmentGlow ? 4 : 0;
   };
   drawVillage(view, phase, put);
   drawSanta(view, phase, put);
@@ -204,6 +205,21 @@ function draw() {
   // The glow is a second pass of the same ASCII glyphs.
   for (let i = 0; i < glyphs.length; i++) {
     if (!bloom[i] || !glyphs[i]) continue;
+    if (bloom[i] === 4) {
+      // Environment light is confined to its own cell. Tree writes above replace
+      // this flag, so a village glow never overwrites a tree cell.
+      const x = (i % columns) * cellWidth, y = Math.floor(i / columns) * cellHeight;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, cellWidth, cellHeight);
+      ctx.clip();
+      ctx.globalAlpha = .16;
+      ctx.shadowBlur = height / 160;
+      ctx.shadowColor = ctx.fillStyle = cssColor(ink[i]);
+      ctx.fillText(String.fromCharCode(glyphs[i]), x, y);
+      ctx.restore();
+      continue;
+    }
     const star = bloom[i] === 3;
     ctx.globalAlpha = opacity[i] * (star ? 0.45 + 0.18 * Math.sin(elapsed * 3.3) ** 8 : 0.45);
     ctx.shadowBlur = height / (star ? 60 : 95);
