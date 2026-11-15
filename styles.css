@@ -7,6 +7,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+html { scroll-padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 
 body {
   margin: 0;
@@ -83,6 +84,7 @@ button:focus-visible, input:focus-visible {
 }
 
 #chat-panel {
+  min-width: 0;
   height: min(680px, 88svh);
   min-height: 320px;
   display: flex;
@@ -114,7 +116,7 @@ button:focus-visible, input:focus-visible {
 
 .message-name { color: #c8b891; }
 .message.mine { color: #e8dec8; }
-#chat-form { padding: 12px; border-top: 1px solid #30353d; }
+#chat-form { flex: none; padding: 12px; border-top: 1px solid #30353d; }
 .chat-compose { display: flex; align-items: center; gap: 8px; }
 .chat-compose label { flex: none; font: 13px system-ui, sans-serif; color: #c8b891; }
 
@@ -129,7 +131,7 @@ button:focus-visible, input:focus-visible {
   background: #171c24;
 }
 
-#chat-send { color: #e0cfaa; border-color: #665c47; padding: 8px 13px; }
+#chat-send { flex: none; min-height: 44px; min-width: 44px; color: #e0cfaa; border-color: #665c47; padding: 8px 13px; }
 #chat-status { margin: 8px 0 0; font: 10px/1.4 system-ui, sans-serif; color: #858e9a; }
 noscript { position: absolute; inset: 40% 5%; text-align: center; }
 
@@ -139,12 +141,15 @@ noscript { position: absolute; inset: 40% 5%; text-align: center; }
 
   #chat-panel {
     flex: none;
-    height: max(320px, calc(100svh - min(119.0476vw, 59svh)));
+    height: max(180px, calc(100svh - min(119.0476vw, 59svh) - 20px - env(safe-area-inset-bottom)));
+    height: max(180px, var(--chat-available-height, calc(100dvh - min(119.0476vw, 59svh) - 20px - env(safe-area-inset-bottom))));
+    min-height: 180px;
     max-height: 650px;
-    margin: 0 10px max(10px, env(safe-area-inset-bottom));
+    margin: 0 max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
   }
 
-  #chat-input { font-size: 16px; }
+  #chat-input { font-size: 16px; min-height: 44px; }
+  #chat-panel .message { font-size: 14px; }
   button { min-height: 32px; padding: 5px 8px; }
   .controls { gap: 4px; bottom: 5%; }
   .controls button { padding: 4px 6px; font-size: 10px; }
