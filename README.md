@@ -1,5 +1,9 @@
 # ASCII Christmas Tree
 
+For ongoing development, read [HANDOFF.md](HANDOFF.md) and [AGENTS.md](AGENTS.md)
+first. They document the protected tree, current Supabase setup and pending
+real-device verification.
+
 Run the scene and shared anonymous chat together:
 
     python server.py

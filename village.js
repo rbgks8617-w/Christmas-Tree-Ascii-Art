@@ -3,9 +3,9 @@
 // Environment only. One bounded cache; the tree's model, palette and projection
 // remain owned by scene.js. Depths stay below -6 (Santa uses -5).
 const villagePalette = {
-  sky: [20, 37, 58], timber: [152, 99, 68], shadow: [80, 56, 46],
-  plaster: [232, 209, 173], window: [255, 208, 121], red: [202, 56, 72],
-  green: [40, 121, 76], gold: [239, 195, 111], snow: [228, 234, 240],
+  sky: [20, 37, 58], timber: [194, 117, 61], shadow: [80, 56, 46],
+  plaster: [244, 213, 166], window: [255, 208, 121], red: [239, 63, 77],
+  green: [52, 170, 91], gold: [250, 193, 83], snow: [238, 244, 250],
 };
 let villageCache = null;
 let villageBuilds = 0;
@@ -61,9 +61,12 @@ function buildVillage(view) {
   buildings.forEach((house, index) => {
     const cx = Math.round(w*house.u), top = house.top;
     const half = Math.max(8, Math.round(house.half*w/225));
-    const {roof, wall, shade, depth} = house;
+    const {roof, wall, depth} = house;
+    // Small glyphs lose coverage on phones: lift environment midtones only,
+    // while retaining deep recesses and the distance ordering of the houses.
+    const shade = Math.min(.94, house.shade * (mobile ? 1.25 : 1.12));
     const eave = top+roof, bottom = eave+wall;
-    const beam = tint(p.timber, shade*.85), dark = tint(p.shadow, shade*.72);
+    const beam = tint(p.timber, shade), dark = tint(p.shadow, house.shade*.72);
     const cream = tint(p.plaster, shade*.90), snow = tint(p.snow, shade);
     const ridge = cx + (index%2 ? 3 : -2);
     // A solid, shadowed side wall establishes volume beyond the front facade.
@@ -92,7 +95,7 @@ function buildVillage(view) {
       const vertical = local%Math.max(6, Math.round(half/2))===0;
       const diagonal = row<wall*.48 && (local+row)%Math.max(12,half)===0;
       if (!horizontal && !vertical && !diagonal && (local+row)%(mobile ? 3 : 2)!==0) continue;
-      point(x,y,horizontal ? "=" : vertical ? "|" : diagonal ? "/" : ":",
+      point(x,y,horizontal ? "=" : vertical ? "|" : diagonal ? "/" : mobile ? "=" : ":",
         horizontal || vertical || diagonal ? beam : cream,depth);
     }
     const windowWidth = half>=17 ? 7 : 5;

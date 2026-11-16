@@ -50,13 +50,13 @@ These values are test-harness timings, NOT Chrome or physical-phone FPS.
 
 | Canvas | Baseline median / p95 | v2 median / p95 |
 | --- | --- | --- |
-| 320x381 | 60.37 / 99.71 ms | 65.24 / 106.85 ms |
-| 390x464 | 55.36 / 94.44 ms | 65.83 / 106.53 ms |
-| 756x900 | 55.70 / 95.77 ms | 66.62 / 108.82 ms |
+| 320x381 | 54.36 / 93.82 ms | 64.15 / 104.08 ms |
+| 390x464 | 53.84 / 93.76 ms | 64.43 / 104.12 ms |
+| 756x900 | 54.21 / 95.45 ms | 66.64 / 107.95 ms |
 
 The frame scheduler remains capped at 30 FPS. This harness exceeds the 33.3ms
 budget even on the baseline, so it does not establish achieved 30 FPS on a real
-device. Added median cost is 4.87-10.92ms in this harness. Browser profiling and
+device. Added median cost is 9.79-12.43ms in this harness. Browser profiling and
 long-duration real-device memory testing remain required before calling the
 performance goal verified.
 
@@ -92,4 +92,10 @@ but it is not a substitute for Chrome/Safari CSS layout and real iOS keyboards.
 Before deployment, inspect desktop Chrome, iPhone Safari, 320px width, portrait
 and landscape, keyboard open/closed, address-bar expansion, large text and zoom.
 Confirm composer visibility, readable messages, no horizontal scroll and music
-controls. Production data has not been changed and nothing has been pushed.
+controls. Production data has not been changed. See Git history and HANDOFF.md for push status.
+
+## 2026-11-16 color follow-up
+
+Environment timber/red/green/gold colors strengthened; mobile midtones lifted
+and facade glyph coverage increased. The tests and frames above were regenerated
+after this adjustment. Tree-only pixels still match the same protected baseline.
