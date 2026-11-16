@@ -135,3 +135,17 @@ glyph/RGB/depth/opacity/bloom을 비교한다. 합성 장면의 트리 셀도 �
   푸시 후 반드시 Render 배포 커밋과 Live 상태를 확인한다. 중복 배포하지 않는다.
 - 운영 접속 확인은 `/healthz`, `/api/chat`, 변경한 정적 파일로 한다.
   키·쿠키·사용자 채팅 전문을 로그로 출력하지 않는다.
+
+
+## Chat snowfall and tree collision (2026-11-16)
+
+- `chat-snow.js` reuses the latest public chat snapshot from `chat.js`; no new API, database writes or storage.
+- A random short excerpt falls across the scene, including above the tree. Initial delay 4-7 seconds; subsequent spawn opportunities every 7-12 seconds, subject to the active limit.
+- Mobile: one active message, up to 12 graphemes, 18 burst particles. Desktop: two messages, up to 22 graphemes, 28 particles. Width fitting may shorten excerpts further.
+- Swept collision against the current visible tree depth/opacity buffer breaks the message into letter fragments and snow sparks; fragments disperse and fade over 1.6 seconds.
+- Shares scene time, pause, replay, reduced-motion default and hidden-tab scheduling. Foreground masks protect tree pixels; tree buffers are read-only.
+- Removed messages disappear when the next successful chat snapshot arrives. Decorative excerpts are Canvas text, never HTML.
+- `server.py` only adds the new JS file to its static asset allowlist. Restart an existing local server to serve it.
+- Run `node test_chat_snow.cjs`, existing Node/server tests and `test_visual.cjs` with CANVAS_MODULE as above. Real phone/browser appearance still needs review.
+- User authorized committing and pushing this feature. Verify GitHub main for publication and Render separately for deployment status.
+- Integrity checks passed: Git objects, JS/Python syntax, existing Node and Python tests, collision particles, and tree preservation at 3 resolutions / 10 times. Actual browser/phone performance remains unverified.

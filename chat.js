@@ -34,6 +34,11 @@ function showMessages(messages) {
   const stick = !lastSnapshot || chatList.scrollHeight - chatList.scrollTop - chatList.clientHeight < 60;
   const oldScroll = chatList.scrollTop;
   lastSnapshot = snapshot;
+  if (typeof chatSnow !== "undefined") {
+    chatSnow.update(messages);
+    // Refresh removals even when animation time is paused.
+    if (typeof paused !== "undefined" && paused && typeof draw === "function") draw();
+  }
   const fragment = document.createDocumentFragment();
   for (const message of messages) {
     const item = document.createElement("p");

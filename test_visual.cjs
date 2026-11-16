@@ -11,14 +11,14 @@ for (const file of ["geometry.js", "christmas_tree_3d.py", "santa.js"])
     require("node:crypto").createHash("sha256").update(old(file).toString().replace(/\r\n/g,"\n")).digest("hex"),
     file + " must remain identical (normalizing Git checkout line endings)");
 
-function setup(width, height, before, isolated) {
+function setup(width, height, before, isolated, messages = false) {
   const canvas = createCanvas(width, height), events = {};
   canvas.getBoundingClientRect = () => ({width, height});
   const controls = {};
   for (const id of ["#toggle", "#replay", "#time"])
     controls[id] = {setAttribute() {}, addEventListener(e, fn) { events[id + e] = fn; }};
   controls["#scene"] = canvas;
-  const document = {hidden: false, querySelector: id => controls[id], addEventListener(e, fn) {events[e] = fn;}};
+  const document = {hidden: false, createElement: () => createCanvas(1, 1), querySelector: id => controls[id], addEventListener(e, fn) {events[e] = fn;}};
   let frame = null;
   const scope = vm.createContext({document, devicePixelRatio: 1,
     matchMedia: () => ({matches: false, addEventListener() {}}),
@@ -26,6 +26,10 @@ function setup(width, height, before, isolated) {
     requestAnimationFrame(fn) {frame = fn; return 1;}, cancelAnimationFrame() {frame = null;},
   });
   const files = ["geometry.js", "village.js", "santa.js", "scene.js"];
+  if (messages) {
+    vm.runInContext(fs.readFileSync("chat-snow.js", "utf8"), scope);
+    vm.runInContext('Math.random = () => .25; chatSnow.update([{text:"Happy Christmas!"},{text:"Snow wishes"}])', scope);
+  }
   for (const file of files) {
     const content = isolated && ["village.js", "santa.js"].includes(file)
       ? (file === "village.js" ? "function drawVillage() {}" : "function drawSanta() {}")
@@ -43,18 +47,39 @@ function setup(width, height, before, isolated) {
 for (const [width,height] of [[320,381],[390,464],[756,900]]) {
   const oldTree = setup(width,height,true,true), newTree = setup(width,height,false,true);
   const oldScene = setup(width,height,true,false), newScene = setup(width,height,false,false);
+  const messageScene = setup(width,height,false,false,true);
   let protectedCells = 0;
   for (const time of [0,2,4,7,9.6,10.7,12,14.5,20.1,42]) {
     oldTree.draw(time); newTree.draw(time);
     assert.deepEqual(newTree.pixels(), oldTree.pixels(), `Tree pixels changed at ${width}, ${time}`);
     assert.deepEqual(newTree.cells(), oldTree.cells(), "Tree glyph/RGB/depth/opacity/bloom changed");
     oldScene.draw(time); newScene.draw(time);
+    messageScene.draw(time);
+    assert.deepEqual(messageScene.cells(), newScene.cells(), "Chat snow changed scene buffers");
+    const plainPixels = newScene.pixels(), messagePixels = messageScene.pixels();
+    const dimensions = vm.runInContext("({columns:view.columns,cellWidth:view.cellWidth,cellHeight:view.cellHeight})", newScene.scope);
+    const cells = newScene.cells();
+    for (let i=0;i<cells.length;i++) if(cells[i][0] !== null && cells[i][0] >= -5 && cells[i][0] < 6) {
+      const x = (i % dimensions.columns) * dimensions.cellWidth;
+      const y = Math.floor(i / dimensions.columns) * dimensions.cellHeight;
+      for (let py=Math.max(0,Math.floor(y)-2);py<Math.min(height,Math.ceil(y+dimensions.cellHeight)+2);py++) {
+        const start=(py*width+Math.max(0,Math.floor(x)-2))*4;
+        const end=(py*width+Math.min(width,Math.ceil(x+dimensions.cellWidth)+2))*4;
+        assert(plainPixels.subarray(start,end).equals(messagePixels.subarray(start,end)), "Chat snow covered foreground pixels");
+      }
+    }
     const before = oldScene.cells(), after = newScene.cells();
     for (let i=0;i<before.length;i++) if(before[i][0] !== null && before[i][0] > -4 && before[i][0] < 6) {
       assert.deepEqual(after[i],before[i],`Environment altered tree cell ${i}`);
       protectedCells++;
     }
   }
+  messageScene.draw(0); messageScene.draw(6); messageScene.draw(9);
+  newScene.draw(9);
+  assert(!messageScene.pixels().equals(newScene.pixels()), "Chat snow never became visible");
+  vm.runInContext("chatSnow.update([])", messageScene.scope);
+  messageScene.draw(9);
+  assert(messageScene.pixels().equals(newScene.pixels()), "Deleted messages remained visible");
   assert.equal(vm.runInContext("villageBuilds",newScene.scope),1,"Cache rebuilds per frame");
   newScene.events["#toggleclick"](); assert.equal(newScene.frame,null,"Pause must stop frames");
   newScene.events["#toggleclick"](); assert(newScene.frame);

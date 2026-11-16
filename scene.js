@@ -190,6 +190,7 @@ function draw() {
 
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
+  if (typeof chatSnow !== "undefined") chatSnow.draw(ctx, view, elapsed);
   let previous = -1;
   for (let i = 0; i < glyphs.length; i++) {
     if (!glyphs[i]) continue;
