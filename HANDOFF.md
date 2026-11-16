@@ -143,9 +143,12 @@ glyph/RGB/depth/opacity/bloom을 비교한다. 합성 장면의 트리 셀도 �
 - A random short excerpt falls across the scene, including above the tree. Initial delay 4-7 seconds; subsequent spawn opportunities every 7-12 seconds, subject to the active limit.
 - Mobile: one active message, up to 12 graphemes, 18 burst particles. Desktop: two messages, up to 22 graphemes, 28 particles. Width fitting may shorten excerpts further.
 - Swept collision against the current visible tree depth/opacity buffer breaks the message into letter fragments and snow sparks; fragments disperse and fade over 1.6 seconds.
-- Shares scene time, pause, replay, reduced-motion default and hidden-tab scheduling. Foreground masks protect tree pixels; tree buffers are read-only.
+- Shares scene time, pause, replay, reduced-motion default and hidden-tab scheduling. Tree buffers are read-only.
+- Visibility fix: render chat snow after the scene and bloom, without foreground erasure masks. User requested visible messages/fragments around the tree and village; only actual tree contact triggers a burst. Particles can temporarily overlay tree pixels; isolated tree pixels and underlying buffers remain unchanged.
 - Removed messages disappear when the next successful chat snapshot arrives. Decorative excerpts are Canvas text, never HTML.
 - `server.py` only adds the new JS file to its static asset allowlist. Restart an existing local server to serve it.
 - Run `node test_chat_snow.cjs`, existing Node/server tests and `test_visual.cjs` with CANVAS_MODULE as above. Real phone/browser appearance still needs review.
 - User authorized committing and pushing this feature. Verify GitHub main for publication and Render separately for deployment status.
 - Integrity checks passed: Git objects, JS/Python syntax, existing Node and Python tests, collision particles, and tree preservation at 3 resolutions / 10 times. Actual browser/phone performance remains unverified.
+
+- Visibility follow-up: falling excerpts and impact fragments now have a dark outline so bright snow/windows do not wash out their letters. Overlay ordering and tree collision behavior are preserved. Not yet published; real phone appearance still needs review.

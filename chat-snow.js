@@ -43,6 +43,9 @@ const chatSnow = (() => {
     pen.save();
     pen.font = `${mobile ? 12 : 15}px "Malgun Gothic", monospace`;
     pen.textBaseline = "middle";
+    pen.strokeStyle = "#14253a";
+    pen.lineWidth = 3;
+    pen.lineJoin = "round";
     pen.fillStyle = "#e4eaf0";
     for (const flake of flakes) {
       if (flake.burstAt !== undefined) { drawBurst(flake, time); continue; }
@@ -91,24 +94,10 @@ const chatSnow = (() => {
         continue;
       }
       pen.globalAlpha = .8 * Math.min(1, age * 8, (1 - age) * 5);
+      pen.strokeText(text, x, y);
       pen.fillText(text, x, y);
     }
-    // Erase a generous margin around foreground rows, including tree glow.
-    // The scene's glyph/RGB/depth/bloom buffers are strictly read-only here.
-    pen.globalAlpha = 1;
-    pen.globalCompositeOperation = "destination-out";
-    for (let row = 0; row < view.rows; row++) {
-      let left = view.columns, right = -1, pad = 3;
-      for (let col = 0; col < view.columns; col++) {
-        const depth = view.depth[row * view.columns + col];
-        if (depth >= -5 && depth < 6) {
-          left = Math.min(left, col); right = col;
-          if (view.bloom[row * view.columns + col]) pad = view.height / 20;
-        }
-      }
-      if (right >= left) pen.fillRect(left * view.cellWidth - pad, row * view.cellHeight - pad,
-        (right - left + 1) * view.cellWidth + 2 * pad, view.cellHeight + 2 * pad);
-    }
+    // Do not mask nearby scenery: only an actual tree collision breaks a message.
     pen.restore();
     target.save();
     target.drawImage(layer, 0, 0, view.width, view.height);
@@ -121,8 +110,10 @@ const chatSnow = (() => {
     pen.globalAlpha = .85 * (1 - age / 1.6) ** 2;
     for (const particle of flake.particles) {
       pen.fillStyle = particle.gold ? "#efd69b" : "#e4eaf0";
-      pen.fillText(particle.glyph, particle.x + particle.vx * age,
-        particle.y + particle.vy * age + 28 * age * age);
+      const x = particle.x + particle.vx * age;
+      const y = particle.y + particle.vy * age + 28 * age * age;
+      pen.strokeText(particle.glyph, x, y);
+      pen.fillText(particle.glyph, x, y);
     }
     pen.restore();
   }

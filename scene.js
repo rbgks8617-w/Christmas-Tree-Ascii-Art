@@ -190,7 +190,6 @@ function draw() {
 
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, width, height);
-  if (typeof chatSnow !== "undefined") chatSnow.draw(ctx, view, elapsed);
   let previous = -1;
   for (let i = 0; i < glyphs.length; i++) {
     if (!glyphs[i]) continue;
@@ -231,6 +230,8 @@ function draw() {
   }
   ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
+  // Chat snow and impact fragments stay visible in front of the scenery.
+  if (typeof chatSnow !== "undefined") chatSnow.draw(ctx, view, elapsed);
   timeLabel.textContent = "t " + phase.toFixed(2).padStart(5, "0") + "s";
 }
 

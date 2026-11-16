@@ -13,6 +13,14 @@ for (const file of ["geometry.js", "christmas_tree_3d.py", "santa.js"])
 
 function setup(width, height, before, isolated, messages = false) {
   const canvas = createCanvas(width, height), events = {};
+  let lastComposite = null;
+  if (messages) {
+    const context = canvas.getContext("2d"), drawImage = context.drawImage.bind(context);
+    context.drawImage = (...args) => {
+      drawImage(...args);
+      lastComposite = Buffer.from(context.getImageData(0,0,width,height).data);
+    };
+  }
   canvas.getBoundingClientRect = () => ({width, height});
   const controls = {};
   for (const id of ["#toggle", "#replay", "#time"])
@@ -37,7 +45,8 @@ function setup(width, height, before, isolated, messages = false) {
     vm.runInContext(content, scope);
   }
   return {scope, canvas, document, events, get frame() {return frame;},
-    draw(t) {vm.runInContext(`elapsed=${t};draw()`, scope);},
+    get lastComposite() {return lastComposite;},
+    draw(t) {lastComposite = null; vm.runInContext(`elapsed=${t};draw()`, scope);},
     pixels() {return Buffer.from(canvas.getContext("2d").getImageData(0, 0, width, height).data);},
     cells() {return JSON.parse(vm.runInContext(`JSON.stringify(Array.from(view.depth, (d,i)=>
       [d,view.glyphs[i],view.ink[i],view.opacity[i],view.bloom[i]]))`, scope));},
@@ -56,18 +65,10 @@ for (const [width,height] of [[320,381],[390,464],[756,900]]) {
     oldScene.draw(time); newScene.draw(time);
     messageScene.draw(time);
     assert.deepEqual(messageScene.cells(), newScene.cells(), "Chat snow changed scene buffers");
-    const plainPixels = newScene.pixels(), messagePixels = messageScene.pixels();
-    const dimensions = vm.runInContext("({columns:view.columns,cellWidth:view.cellWidth,cellHeight:view.cellHeight})", newScene.scope);
-    const cells = newScene.cells();
-    for (let i=0;i<cells.length;i++) if(cells[i][0] !== null && cells[i][0] >= -5 && cells[i][0] < 6) {
-      const x = (i % dimensions.columns) * dimensions.cellWidth;
-      const y = Math.floor(i / dimensions.columns) * dimensions.cellHeight;
-      for (let py=Math.max(0,Math.floor(y)-2);py<Math.min(height,Math.ceil(y+dimensions.cellHeight)+2);py++) {
-        const start=(py*width+Math.max(0,Math.floor(x)-2))*4;
-        const end=(py*width+Math.min(width,Math.ceil(x+dimensions.cellWidth)+2))*4;
-        assert(plainPixels.subarray(start,end).equals(messagePixels.subarray(start,end)), "Chat snow covered foreground pixels");
-      }
-    }
+    // Requested foreground particles may overlap the tree; the underlying tree
+    // buffers and isolated tree pixels must still remain exactly unchanged.
+    if (messageScene.lastComposite)
+      assert(messageScene.lastComposite.equals(messageScene.pixels()), "Scenery overwrote chat snow after compositing");
     const before = oldScene.cells(), after = newScene.cells();
     for (let i=0;i<before.length;i++) if(before[i][0] !== null && before[i][0] > -4 && before[i][0] < 6) {
       assert.deepEqual(after[i],before[i],`Environment altered tree cell ${i}`);

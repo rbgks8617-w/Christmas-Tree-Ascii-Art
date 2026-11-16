@@ -1,7 +1,8 @@
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
-let words = [], composites = 0;
-const pen = {setTransform(){},clearRect(){words=[];},save(){},restore(){},fillRect(){},
+let words = [], outlines = [], composites = 0;
+const pen = {setTransform(){},clearRect(){words=[];outlines=[];},save(){},restore(){},fillRect(){},
   measureText(text){return {width:Array.from(text).length*7};},
+  strokeText(text,x,y){outlines.push({text,x,y});},
   fillText(text,x,y){words.push({text,x,y});}};
 const target = {save(){},restore(){},drawImage(){composites++;}};
 const scope = vm.createContext({devicePixelRatio:1, Intl,
@@ -17,9 +18,11 @@ const unchanged = Buffer.from(view.depth.buffer).toString('hex');
 effect.update([{text:'Happy Christmas'}]);
 effect.draw(target,view,0); effect.draw(target,view,5); effect.draw(target,view,9);
 assert.equal(words.length,1,'One falling message on mobile');
+assert.deepEqual(outlines,words,'Falling text has a contrasting outline');
 assert(words[0].text.includes('Happy'),'Public message is visible before collision');
 effect.draw(target,view,10);
 assert.equal(words.length,18,'Tree contact must produce mobile particle burst');
+assert.deepEqual(outlines,words,'Every impact fragment has a contrasting outline');
 assert(words.every(word=>!word.text.includes('Happy')),'Whole message disappears on impact');
 effect.draw(target,view,10.5);
 const frozen=JSON.stringify(words);
